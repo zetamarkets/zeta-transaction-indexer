@@ -13,5 +13,8 @@
   },
   "engines": {
     "node": "16.x"
+  },
+  "devDependencies": {
+    "ts-morph": "^13.0.2"
   }
 }
