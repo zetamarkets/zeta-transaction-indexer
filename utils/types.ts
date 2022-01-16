@@ -1,4 +1,6 @@
 import { Kind } from "@zetamarkets/sdk/dist/types";
+import { TransactionError } from "@solana/web3.js";
+import { Instruction } from "@project-serum/anchor";
 
 export interface EventQueueHeader {
   head: number;
@@ -44,4 +46,15 @@ export interface Surface {
   vol_surface: number[];
   nodes: number[];
   interest_rate: number;
+}
+
+export interface IZetaTransaction {
+  transaction_id: string;
+  block_timestamp: number;
+  slot: number;
+  is_successful: boolean;
+  fee: number;
+  accounts: string[];
+  instructions: Instruction[];
+  log_messages: string[];
 }

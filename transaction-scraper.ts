@@ -5,11 +5,12 @@ import {
   PublicKey,
   PartiallyDecodedInstruction,
   ParsedConfirmedTransaction,
-  TransactionError,
 } from "@solana/web3.js";
 import { putFirehoseBatch } from "./utils/firehose";
+import { IZetaTransaction } from "./utils/types";
 
 const MAX_SIGNATURE_BATCH_SIZE = 100;
+const idlMap = new Map(idl.instructions.map((x) => [x.name, x.args]));
 
 const connection = new Connection(process.env.RPC_URL, "finalized");
 let coder = new anchor.Coder(idl as anchor.Idl);
@@ -17,22 +18,33 @@ let coder = new anchor.Coder(idl as anchor.Idl);
 let before = undefined;
 let until = undefined;
 
-interface IZetaTransaction {
-  transaction_id: string;
-  block_timestamp: number;
-  slot: number;
-  is_successful: boolean;
-  error: TransactionError;
-  fee: number;
-  accounts: string[];
-  instructions: anchor.Instruction[];
-  log_messages: string[];
-}
-
 function parseZetaInstruction(
   ix: PartiallyDecodedInstruction
 ): anchor.Instruction {
-  return coder.instruction.decode(ix.data, "base58");
+  let decodedIx = coder.instruction.decode(ix.data, "base58");
+  console.log(decodedIx);
+  Object.keys(decodedIx.data).forEach((key, index) => {
+    let value = decodedIx.data[key];
+    let idlArgs = idlMap.get(decodedIx.name);
+    let argName = idlArgs[index].name;
+    let argType = idlArgs[index].type;
+    // if (anchor.BN.isBN(value)) {
+    //   decodedIx.data[key] = value.toNumber();
+    // }
+    // if (key === "side") {
+    //   decodedIx.data[key] = Object.keys(value)[0];
+    // }
+    if (argType === "u64") {
+      decodedIx.data[key] = value.toNumber() / 10 ** 6;
+    }
+    if (key === "side") {
+      decodedIx.data[key] = Object.keys(value)[0];
+    }
+  });
+  console.log(decodedIx);
+
+  // console.log(idlMap.get(decodedIx.name));
+  return decodedIx;
 }
 
 function parseZetaTransaction(
@@ -43,7 +55,6 @@ function parseZetaTransaction(
     block_timestamp: tx.blockTime,
     slot: tx.slot,
     is_successful: tx.meta.err ? false : true,
-    error: tx.meta.err,
     fee: tx.meta.fee,
     accounts: tx.transaction.message.accountKeys.map((account) =>
       account.pubkey.toString()
@@ -68,7 +79,7 @@ export async function scrapeTransactionBatch() {
 
   let txs = await connection.getParsedConfirmedTransactions(sigs);
   let parsedTxs = txs.map(parseZetaTransaction);
-  console.log(parsedTxs);
+  // console.log(JSON.stringify(parsedTxs.map((x) => x.instructions)));
 
-  putFirehoseBatch(txs, process.env.FIREHOSE_DS_NAME);
+  // putFirehoseBatch(parsedTxs, process.env.FIREHOSE_DS_NAME);
 }

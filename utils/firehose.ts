@@ -1,7 +1,6 @@
 import AWS from "aws-sdk";
 import { AWSOptions } from "./aws-config";
-import { Pricing, Surface, Trade } from "./types";
-import { ParsedConfirmedTransaction } from "@solana/web3.js";
+import { IZetaTransaction } from "./types";
 
 let firehose = new AWS.Firehose(AWSOptions);
 
@@ -12,7 +11,7 @@ firehose.listDeliveryStreams(function (err, data) {
 });
 
 export const putFirehoseBatch = (
-  data: ParsedConfirmedTransaction[],
+  data: IZetaTransaction[],
   deliveryStreamName: string
 ) => {
   if (!data.length) return;
