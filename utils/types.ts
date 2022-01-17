@@ -58,3 +58,8 @@ export interface IZetaTransaction {
   instructions: Instruction[];
   log_messages: string[];
 }
+
+export interface tableIndices {
+  first: string | undefined;
+  last: string | undefined;
+}

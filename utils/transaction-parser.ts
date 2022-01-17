@@ -1,29 +1,19 @@
-import { idl, constants, utils } from "@zetamarkets/sdk";
+import { idl, utils } from "@zetamarkets/sdk";
 import * as anchor from "@project-serum/anchor";
 import {
-  Connection,
-  PublicKey,
   PartiallyDecodedInstruction,
   ParsedConfirmedTransaction,
 } from "@solana/web3.js";
-import { putFirehoseBatch } from "./utils/firehose";
-import { IZetaTransaction } from "./utils/types";
+import { IZetaTransaction } from "./types";
 import * as zetaTypes from "./instruction-types";
 
-const MAX_SIGNATURE_BATCH_SIZE = 100;
-const idlMap = new Map(idl.instructions.map((x) => [x.name, x.args]));
-
-const connection = new Connection(process.env.RPC_URL, "finalized");
 let coder = new anchor.Coder(idl as anchor.Idl);
-
-let before = undefined;
-let until = undefined;
+const idlMap = new Map(idl.instructions.map((x) => [x.name, x.args]));
 
 function parseZetaInstruction(
   ix: PartiallyDecodedInstruction
 ): anchor.Instruction {
   let decodedIx = coder.instruction.decode(ix.data, "base58");
-  console.log(decodedIx);
   // Add any custom parsing logic for individual ixs
   switch (decodedIx.name) {
     case "initializeZetaGroup":
@@ -240,11 +230,11 @@ function parseZetaInstruction(
       };
       break;
   }
-  console.log(decodedIx);
+  // console.log(decodedIx);
   return decodedIx;
 }
 
-function parseZetaTransaction(
+export function parseZetaTransaction(
   tx: ParsedConfirmedTransaction
 ): IZetaTransaction {
   return {
@@ -261,23 +251,4 @@ function parseZetaTransaction(
     ),
     log_messages: tx.meta.logMessages,
   };
-}
-
-export async function scrapeTransactionBatch() {
-  let sigInfos = await connection.getConfirmedSignaturesForAddress2(
-    new PublicKey(process.env.PROGRAM_ID),
-    {
-      before: before,
-      until: until,
-      limit: MAX_SIGNATURE_BATCH_SIZE,
-    }
-  );
-  let sigs = sigInfos.map((x) => x.signature);
-
-  let txs = await connection.getParsedConfirmedTransactions(sigs);
-  let parsedTxs = txs.map(parseZetaTransaction);
-
-  console.log(parsedTxs.map((x) => x.instructions[0].data));
-
-  putFirehoseBatch(parsedTxs, process.env.FIREHOSE_DS_NAME);
 }
