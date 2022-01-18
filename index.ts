@@ -65,8 +65,8 @@ export async function scrapeTransactionBatch(
 const main = async () => {
   let { first, last } = await getTxIndexMetadata(process.env.S3_BUCKET_NAME);
   let finished = false;
-  let lastProcessedSig = last;
-  if (lastProcessedSig !== undefined) {
+  let lastProcessedSig = undefined;
+  if (last !== undefined) {
     console.log(`Resuming transaction indexing until ${last}`);
   } else {
     console.log(`No prior transactions indexed, starting from scratch`);
@@ -75,8 +75,8 @@ const main = async () => {
     let r = await scrapeTransactionBatch(lastProcessedSig, last);
     await putTxIndexMetadata(
       process.env.S3_BUCKET_NAME,
-      r.lastProcessedSig,
-      undefined
+      undefined,
+      r.lastProcessedSig
     );
     finished = r.finished;
     lastProcessedSig = r.lastProcessedSig;

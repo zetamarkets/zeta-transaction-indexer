@@ -54,10 +54,9 @@ export const putS3Batch = async (
   let df = date.format(d, "YYYY-MM-DD-HH-mm-ss");
   var params = {
     Bucket: bucketName /* required */,
-    Key: `${d.getUTCFullYear()}/${String(d.getUTCMonth() + 1).padStart(
-      2,
-      "0"
-    )}/${String(d.getUTCDate()).padStart(2, "0")}/${String(
+    Key: `${bucketName}/${d.getUTCFullYear()}/${String(
+      d.getUTCMonth() + 1
+    ).padStart(2, "0")}/${String(d.getUTCDate()).padStart(2, "0")}/${String(
       d.getUTCHours()
     ).padStart(2, "0")}/PUT-S3-zetamarkets-${
       process.env.NETWORK

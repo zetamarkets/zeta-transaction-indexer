@@ -237,18 +237,25 @@ function parseZetaInstruction(
 export function parseZetaTransaction(
   tx: ParsedConfirmedTransaction
 ): IZetaTransaction {
-  return {
-    transaction_id: tx.transaction.signatures[0],
-    block_timestamp: tx.blockTime,
-    slot: tx.slot,
-    is_successful: tx.meta.err ? false : true,
-    fee: tx.meta.fee,
-    accounts: tx.transaction.message.accountKeys.map((account) =>
-      account.pubkey.toString()
-    ),
-    instructions: tx.transaction.message.instructions.map((ix) =>
-      parseZetaInstruction(ix as PartiallyDecodedInstruction)
-    ),
-    log_messages: tx.meta.logMessages,
-  };
+  try {
+    return {
+      transaction_id: tx.transaction.signatures[0],
+      block_timestamp: tx.blockTime,
+      slot: tx.slot,
+      is_successful: tx.meta.err ? false : true,
+      fee: tx.meta.fee,
+      accounts: tx.transaction.message.accountKeys.map((account) =>
+        account.pubkey.toString()
+      ),
+      instructions: tx.transaction.message.instructions.map((ix) =>
+        parseZetaInstruction(ix as PartiallyDecodedInstruction)
+      ),
+      log_messages: tx.meta.logMessages,
+    };
+  } catch (e) {
+    console.error(e);
+    console.error(tx);
+    console.error(tx.transaction);
+    throw e;
+  }
 }
