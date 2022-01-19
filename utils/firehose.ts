@@ -1,6 +1,6 @@
 import AWS from "aws-sdk";
 import { AWSOptions } from "./aws-config";
-import { IZetaTransaction } from "./types";
+import { ZetaTransaction } from "./types";
 
 let firehose = new AWS.Firehose(AWSOptions);
 
@@ -11,7 +11,7 @@ firehose.listDeliveryStreams(function (err, data) {
 });
 
 export const putFirehoseBatch = (
-  data: IZetaTransaction[],
+  data: ZetaTransaction[],
   deliveryStreamName: string
 ) => {
   if (!data.length) return;

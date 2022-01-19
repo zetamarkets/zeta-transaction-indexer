@@ -1,8 +1,8 @@
 import AWS from "aws-sdk";
 import { AWSOptions } from "./aws-config";
-import { IZetaTransaction } from "./types";
+import { ZetaTransaction } from "./types";
 import * as date from "date-and-time";
-import { tableIndices } from "./types";
+import { TableIndices } from "./types";
 
 let s3 = new AWS.S3(AWSOptions);
 
@@ -25,7 +25,7 @@ export const putTxIndexMetadata = async (
 
 export const getTxIndexMetadata = async (
   bucketName: string
-): Promise<tableIndices> => {
+): Promise<TableIndices> => {
   try {
     const data = await s3
       .getObject({
@@ -41,7 +41,7 @@ export const getTxIndexMetadata = async (
 };
 
 export const putS3Batch = async (
-  data: IZetaTransaction[],
+  data: ZetaTransaction[],
   bucketName: string
 ) => {
   if (!data.length) return;

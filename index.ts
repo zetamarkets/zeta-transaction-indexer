@@ -5,8 +5,7 @@ import * as anchor from "@project-serum/anchor";
 import { putFirehoseBatch } from "./utils/firehose";
 import { getTxIndexMetadata, putS3Batch, putTxIndexMetadata } from "./utils/s3";
 import { parseZetaTransaction } from "./utils/transaction-parser";
-
-const MAX_SIGNATURE_BATCH_SIZE = 200;
+import { PROGRAM_ID, MAX_SIGNATURE_BATCH_SIZE } from "./utils/constants";
 
 const connection = new Connection(process.env.RPC_URL, "finalized");
 
@@ -23,8 +22,9 @@ export async function scrapeTransactionBatch(
 ): Promise<{ finished: boolean; lastProcessedSig: string }> {
   console.log(`Fetching all txs before ${before}`);
 
+  // Note: this also grabs CPI calls
   let sigInfos = await connection.getConfirmedSignaturesForAddress2(
-    new PublicKey(process.env.PROGRAM_ID),
+    PROGRAM_ID,
     {
       before: before,
       until: until,
@@ -44,16 +44,12 @@ export async function scrapeTransactionBatch(
   let lastProcessedSig = sigs[sigs.length - 1];
 
   let txs = await connection.getParsedConfirmedTransactions(sigs);
-  let parsedTxs = txs.map(parseZetaTransaction);
+  let parsedTxs = txs.filter((tx) => tx).map(parseZetaTransaction);
   console.log(`Fetched tx range: 
-  start: ${sigs[0]} (${new Date(parsedTxs[0].block_timestamp * 1000)})
+  start: ${sigs[0]} (${new Date(parsedTxs[0]?.block_timestamp * 1000)})
   end: ${lastProcessedSig} (${new Date(
-    parsedTxs[sigs.length - 1].block_timestamp * 1000
+    parsedTxs[sigs.length - 1]?.block_timestamp * 1000
   )})`);
-
-  // putFirehoseBatch(parsedTxs, process.env.FIREHOSE_DS_NAME);
-  // await putTxIndexMetadata(before, until);
-  // console.log(indices);
 
   putS3Batch(parsedTxs, process.env.S3_BUCKET_NAME);
   return {

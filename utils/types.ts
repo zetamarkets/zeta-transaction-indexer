@@ -1,6 +1,5 @@
 import { Kind } from "@zetamarkets/sdk/dist/types";
 import { TransactionError } from "@solana/web3.js";
-import { Instruction } from "@project-serum/anchor";
 
 export interface EventQueueHeader {
   head: number;
@@ -48,7 +47,7 @@ export interface Surface {
   interest_rate: number;
 }
 
-export interface IZetaTransaction {
+export interface ZetaTransaction {
   transaction_id: string;
   block_timestamp: number;
   slot: number;
@@ -59,7 +58,13 @@ export interface IZetaTransaction {
   log_messages: string[];
 }
 
-export interface tableIndices {
+export interface TableIndices {
   first: string | undefined;
   last: string | undefined;
+}
+
+export interface Instruction {
+  name: string;
+  instruction: Object;
+  program_id: string;
 }

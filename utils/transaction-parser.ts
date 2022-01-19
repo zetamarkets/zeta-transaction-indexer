@@ -4,16 +4,18 @@ import {
   PartiallyDecodedInstruction,
   ParsedConfirmedTransaction,
 } from "@solana/web3.js";
-import { IZetaTransaction } from "./types";
+import { ZetaTransaction, Instruction } from "./types";
 import * as zetaTypes from "./instruction-types";
+import { PROGRAM_ID } from "./constants";
 
 let coder = new anchor.Coder(idl as anchor.Idl);
 const idlMap = new Map(idl.instructions.map((x) => [x.name, x.args]));
 
-function parseZetaInstruction(
-  ix: PartiallyDecodedInstruction
-): anchor.Instruction {
+function parseZetaInstruction(ix: PartiallyDecodedInstruction): Instruction {
   let decodedIx = coder.instruction.decode(ix.data, "base58");
+  if (decodedIx == null) {
+    throw new Error(`Instruction data ${ix.data} failed to decode`);
+  }
   // Add any custom parsing logic for individual ixs
   switch (decodedIx.name) {
     case "initializeZetaGroup":
@@ -230,32 +232,52 @@ function parseZetaInstruction(
       };
       break;
   }
-  // console.log(decodedIx);
-  return decodedIx;
+  return {
+    name: decodedIx.name,
+    instruction: decodedIx.data,
+    program_id: ix.programId.toString(),
+  };
 }
 
 export function parseZetaTransaction(
   tx: ParsedConfirmedTransaction
-): IZetaTransaction {
+): ZetaTransaction {
+  let parsedInstructions: Instruction[];
   try {
-    return {
-      transaction_id: tx.transaction.signatures[0],
-      block_timestamp: tx.blockTime,
-      slot: tx.slot,
-      is_successful: tx.meta.err ? false : true,
-      fee: tx.meta.fee,
-      accounts: tx.transaction.message.accountKeys.map((account) =>
-        account.pubkey.toString()
-      ),
-      instructions: tx.transaction.message.instructions.map((ix) =>
-        parseZetaInstruction(ix as PartiallyDecodedInstruction)
-      ),
-      log_messages: tx.meta.logMessages,
-    };
+    let instructions = tx.transaction.message.instructions.flatMap(
+      (ix, index) => {
+        // Handle CPI instructions, replace them with inner Zeta ixs
+        if (!ix.programId.equals(PROGRAM_ID)) {
+          let innerIxsforOuterIx = tx.meta.innerInstructions.filter(
+            (innerIxs) => innerIxs.index == index
+          )[0];
+          let innerIxs = innerIxsforOuterIx.instructions.filter((innerIx) =>
+            innerIx.programId.equals(PROGRAM_ID)
+          );
+          return innerIxs;
+        } else {
+          return ix;
+        }
+      }
+    );
+    parsedInstructions = instructions.map((ix) =>
+      parseZetaInstruction(ix as PartiallyDecodedInstruction)
+    );
   } catch (e) {
-    console.error(e);
     console.error(tx);
     console.error(tx.transaction);
     throw e;
   }
+  return {
+    transaction_id: tx.transaction.signatures[0],
+    block_timestamp: tx.blockTime,
+    slot: tx.slot,
+    is_successful: tx.meta.err ? false : true,
+    fee: tx.meta.fee,
+    accounts: tx.transaction.message.accountKeys.map((account) =>
+      account.pubkey.toString()
+    ),
+    instructions: parsedInstructions,
+    log_messages: tx.meta.logMessages,
+  };
 }
