@@ -11,7 +11,7 @@ export async function scrapeTransactionBatch(
   before: string,
   until: string
 ): Promise<{
-  finished: boolean;
+  sig_len: number;
   latestProcessedSig: string;
   earliestProcessedSig: string;
 }> {
@@ -28,8 +28,8 @@ export async function scrapeTransactionBatch(
   );
   if (sigInfos.length == 0) {
     return {
-      finished: true,
-      latestProcessedSig: undefined,
+      sig_len: 0,
+      latestProcessedSig: before,
       earliestProcessedSig: undefined,
     };
   }
@@ -50,7 +50,7 @@ export async function scrapeTransactionBatch(
 
   putS3Batch(parsedTxs, process.env.S3_BUCKET_NAME);
   return {
-    finished: sigs.length < MAX_SIGNATURE_BATCH_SIZE,
+    sig_len: sigs.length,
     latestProcessedSig: latestProcessedSig,
     earliestProcessedSig: earliestProcessedSig,
   };
@@ -76,22 +76,24 @@ const indexingLoop = async () => {
       }
       earliestProcessedSig = r.earliestProcessedSig;
       // If indices actually need to be updates (sigs length > 0)
-      if (earliestProcessedSig !== undefined) {
+      if (r.sig_len > 0) {
         await putTxIndexMetadata(
           process.env.S3_BUCKET_NAME,
           earliestProcessedSig,
           latestProcessedSig
         );
       }
-      console.log();
-      if (r.finished) {
+      if (r.sig_len < MAX_SIGNATURE_BATCH_SIZE) {
         console.log("%cNo more txs to scrape!", "color: green");
         break;
       }
     }
     // Wait until rescrape
-    await sleep(5000);
-    latest = latestProcessedSig;
+    await sleep(10_000);
+    // Handles case when zero sigs returned on init
+    if (latestProcessedSig !== undefined) {
+      latest = latestProcessedSig;
+    }
   }
 };
 

@@ -66,5 +66,6 @@ export interface TableIndices {
 export interface Instruction {
   name: string;
   instruction: Object;
+  named_accounts: Object;
   program_id: string;
 }
