@@ -8,19 +8,19 @@ let s3 = new AWS.S3(AWSOptions);
 
 export const putTxIndexMetadata = async (
   bucketName: string,
-  first: string | undefined,
-  last: string | undefined
+  earliest: string | undefined,
+  latest: string | undefined
 ) => {
-  let data = JSON.stringify({ first, last });
+  let data = JSON.stringify({ earliest, latest });
   await s3
     .putObject({
       Bucket: bucketName,
-      Key: `metadata/${process.env.NETWORK}-indices.json`,
+      Key: `metadata/signature-indices.json`,
       Body: data,
       ContentType: "application/json",
     })
     .promise();
-  console.log("S3 putObject Success", data);
+  console.log("Successfully wrote indices to S3", data);
 };
 
 export const getTxIndexMetadata = async (
@@ -30,13 +30,13 @@ export const getTxIndexMetadata = async (
     const data = await s3
       .getObject({
         Bucket: bucketName,
-        Key: `metadata/${process.env.NETWORK}-indices.json`,
+        Key: `metadata/signature-indices.json`,
       })
       .promise();
     return JSON.parse(data.Body.toString("utf-8"));
   } catch (error) {
     console.error(error);
-    return { first: undefined, last: undefined };
+    return { earliest: undefined, latest: undefined };
   }
 };
 
@@ -54,9 +54,10 @@ export const putS3Batch = async (
   let df = date.format(d, "YYYY-MM-DD-HH-mm-ss");
   var params = {
     Bucket: bucketName /* required */,
-    Key: `${bucketName}/${d.getUTCFullYear()}/${String(
-      d.getUTCMonth() + 1
-    ).padStart(2, "0")}/${String(d.getUTCDate()).padStart(2, "0")}/${String(
+    Key: `${d.getUTCFullYear()}/${String(d.getUTCMonth() + 1).padStart(
+      2,
+      "0"
+    )}/${String(d.getUTCDate()).padStart(2, "0")}/${String(
       d.getUTCHours()
     ).padStart(2, "0")}/PUT-S3-zetamarkets-${
       process.env.NETWORK

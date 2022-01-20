@@ -59,8 +59,8 @@ export interface ZetaTransaction {
 }
 
 export interface TableIndices {
-  first: string | undefined;
-  last: string | undefined;
+  earliest: string | undefined;
+  latest: string | undefined;
 }
 
 export interface Instruction {

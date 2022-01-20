@@ -16,6 +16,8 @@ function parseZetaInstruction(ix: PartiallyDecodedInstruction): Instruction {
   if (decodedIx == null) {
     throw new Error(`Instruction data ${ix.data} failed to decode`);
   }
+  // TODO get the authority account
+  idl.instructions
   // Add any custom parsing logic for individual ixs
   switch (decodedIx.name) {
     case "initializeZetaGroup":
