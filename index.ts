@@ -57,10 +57,10 @@ export async function scrapeTransactionBatch(
 }
 
 const indexingLoop = async () => {
-  let { earliest, latest } = await getTxIndexMetadata(
-    process.env.S3_BUCKET_NAME
-  );
   while (true) {
+    let { earliest, latest } = await getTxIndexMetadata(
+      process.env.S3_BUCKET_NAME
+    );
     let earliestProcessedSig, latestProcessedSig;
 
     if (latest !== undefined) {
@@ -75,7 +75,7 @@ const indexingLoop = async () => {
         latestProcessedSig = r.latestProcessedSig;
       }
       earliestProcessedSig = r.earliestProcessedSig;
-      // If indices actually need to be updates (sigs length > 0)
+      // If indices actually need to be updated (sigs length > 0)
       if (r.sig_len > 0) {
         await putTxIndexMetadata(
           process.env.S3_BUCKET_NAME,
@@ -90,10 +90,6 @@ const indexingLoop = async () => {
     }
     // Wait until rescrape
     await sleep(10_000);
-    // Handles case when zero sigs returned on init
-    if (latestProcessedSig !== undefined) {
-      latest = latestProcessedSig;
-    }
   }
 };
 
