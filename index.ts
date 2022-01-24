@@ -37,14 +37,13 @@ export async function scrapeTransactionBatch(
   let sigs = sigInfos.map((x) => x.signature);
 
   let txs = await connection.getParsedConfirmedTransactions(sigs);
+  txs = txs.filter((tx) => tx); // remove nulls
   // Chop off the straggler transactions from each end
   // We basically don't have a guarantee that those txes are in complete blocks
   // which can mess up due to non-deterministic intra-block ordering
-  txs = txs
-    .filter((tx) => tx) // remove nulls
-    .filter(
-      (tx) => tx.slot !== txs[0].slot && tx.slot !== txs[txs.length - 1].slot
-    );
+  txs = txs.filter(
+    (tx) => tx.slot !== txs[0].slot && tx.slot !== txs[txs.length - 1].slot
+  );
   // Parse transactions using program IDL
   let parsedTxs = txs.map(parseZetaTransaction);
 
