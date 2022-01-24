@@ -294,5 +294,6 @@ export function parseZetaTransaction(
     ),
     instructions: parsedInstructions,
     log_messages: tx.meta.logMessages,
+    fetch_timestamp: Date.now() / 1000,
   };
 }

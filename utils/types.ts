@@ -56,6 +56,7 @@ export interface ZetaTransaction {
   accounts: string[];
   instructions: Instruction[];
   log_messages: string[];
+  fetch_timestamp: number;
 }
 
 export interface TableIndices {
