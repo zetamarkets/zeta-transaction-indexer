@@ -28,19 +28,29 @@ export async function scrapeTransactionBatch(
   );
   if (sigInfos.length == 0) {
     return {
-      sig_len: 0,
+      sig_len: sigInfos.length,
       latestProcessedSig: before,
       earliestProcessedSig: undefined,
     };
   }
 
   let sigs = sigInfos.map((x) => x.signature);
-  let latestProcessedSig = sigs[0];
-  let earliestProcessedSig = sigs[sigs.length - 1];
 
   let txs = await connection.getParsedConfirmedTransactions(sigs);
-  let parsedTxs = txs.filter((tx) => tx).map(parseZetaTransaction);
-  console.log(`Fetched tx range (${txs.length} txs): 
+  // Chop off the straggler transactions from each end
+  // We basically don't have a guarantee that those txes are in complete blocks
+  // which can mess up due to non-deterministic intra-block ordering
+  txs = txs
+    .filter((tx) => tx) // remove nulls
+    .filter(
+      (tx) => tx.slot !== txs[0].slot && tx.slot !== txs[txs.length - 1].slot
+    );
+  // Parse transactions using program IDL
+  let parsedTxs = txs.map(parseZetaTransaction);
+
+  let latestProcessedSig = parsedTxs[0].transaction_id;
+  let earliestProcessedSig = parsedTxs[parsedTxs.length - 1].transaction_id;
+  console.log(`Fetched tx range (${parsedTxs.length} txs): 
   latest: ${latestProcessedSig} (${new Date(
     parsedTxs[0]?.block_timestamp * 1000
   )})
@@ -50,7 +60,7 @@ export async function scrapeTransactionBatch(
 
   putS3Batch(parsedTxs, process.env.S3_BUCKET_NAME);
   return {
-    sig_len: sigs.length,
+    sig_len: sigInfos.length,
     latestProcessedSig: latestProcessedSig,
     earliestProcessedSig: earliestProcessedSig,
   };
