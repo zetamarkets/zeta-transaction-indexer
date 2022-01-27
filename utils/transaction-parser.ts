@@ -282,7 +282,6 @@ export function parseZetaTransaction(
   parsedInstructions = instructions.map((ix) =>
     parseZetaInstruction(ix as PartiallyDecodedInstruction)
   );
-  // s// account.pubkey.toString()
   return {
     transaction_id: tx.transaction.signatures[0],
     block_timestamp: tx.blockTime,
@@ -294,6 +293,6 @@ export function parseZetaTransaction(
     ),
     instructions: parsedInstructions,
     log_messages: tx.meta.logMessages,
-    fetch_timestamp: Date.now() / 1000,
+    fetch_timestamp: Math.floor(Date.now() / 1000),
   };
 }

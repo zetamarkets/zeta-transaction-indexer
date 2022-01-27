@@ -1,6 +1,6 @@
 import { Connection } from "@solana/web3.js";
-import * as anchor from "@project-serum/anchor";
 import { getTxIndexMetadata, putS3Batch, putTxIndexMetadata } from "./utils/s3";
+import { putFirehoseBatch } from "./utils/firehose";
 import { parseZetaTransaction } from "./utils/transaction-parser";
 import { PROGRAM_ID, MAX_SIGNATURE_BATCH_SIZE } from "./utils/constants";
 import { sleep } from "@zetamarkets/sdk/dist/utils";
@@ -28,7 +28,7 @@ export async function scrapeTransactionBatch(
   );
   if (sigInfos.length == 0) {
     return {
-      sig_len: sigInfos.length,
+      sig_len: 0,
       latestProcessedSig: before,
       earliestProcessedSig: undefined,
     };
@@ -44,6 +44,13 @@ export async function scrapeTransactionBatch(
   txs = txs.filter(
     (tx) => tx.slot !== txs[0].slot && tx.slot !== txs[txs.length - 1].slot
   );
+  if (txs.length == 0) {
+    return {
+      sig_len: 0,
+      latestProcessedSig: before,
+      earliestProcessedSig: undefined,
+    };
+  }
   // Parse transactions using program IDL
   let parsedTxs = txs.map(parseZetaTransaction);
 
@@ -57,7 +64,8 @@ export async function scrapeTransactionBatch(
     parsedTxs[sigs.length - 1]?.block_timestamp * 1000
   )})`);
 
-  putS3Batch(parsedTxs, process.env.S3_BUCKET_NAME);
+  // putS3Batch(parsedTxs, process.env.S3_BUCKET_NAME);
+  putFirehoseBatch(parsedTxs, process.env.FIREHOSE_DS_NAME_TRANSACTIONS);
   return {
     sig_len: sigInfos.length,
     latestProcessedSig: latestProcessedSig,
