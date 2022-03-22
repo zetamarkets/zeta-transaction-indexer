@@ -15,7 +15,7 @@ export const putTxIndexMetadata = async (
   await s3
     .putObject({
       Bucket: bucketName,
-      Key: `metadata/signature-indices.json`,
+      Key: `transactions/raw/indexer-checkpoint/signature-indices.json`,
       Body: data,
       ContentType: "application/json",
     })
@@ -30,7 +30,7 @@ export const getTxIndexMetadata = async (
     const data = await s3
       .getObject({
         Bucket: bucketName,
-        Key: `metadata/signature-indices.json`,
+        Key: `transactions/raw/indexer-checkpoint/signature-indices.json`,
       })
       .promise();
     return JSON.parse(data.Body.toString("utf-8"));
@@ -40,6 +40,7 @@ export const getTxIndexMetadata = async (
   }
 };
 
+// Not used currently in favour of Firehose
 export const putS3Batch = async (
   data: ZetaTransaction[],
   bucketName: string
@@ -54,12 +55,12 @@ export const putS3Batch = async (
   let df = date.format(d, "YYYY-MM-DD-HH-mm-ss");
   var params = {
     Bucket: bucketName /* required */,
-    Key: `${d.getUTCFullYear()}/${String(d.getUTCMonth() + 1).padStart(
+    Key: `tranasctions/raw/data/year=${d.getUTCFullYear()}/month=${String(d.getUTCMonth() + 1).padStart(
       2,
       "0"
-    )}/${String(d.getUTCDate()).padStart(2, "0")}/${String(
+    )}/day=${String(d.getUTCDate()).padStart(2, "0")}/hour=${String(
       d.getUTCHours()
-    ).padStart(2, "0")}/PUT-S3-zetamarkets-${
+    ).padStart(2, "0")}/PUT-S3-zetadex-${
       process.env.NETWORK
     }-transactions-${df}-${data[0].transaction_id}-${
       data[data.length - 1].transaction_id
