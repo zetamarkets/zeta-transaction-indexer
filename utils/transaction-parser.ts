@@ -2,16 +2,23 @@ import { idl, utils } from "@zetamarkets/sdk";
 import * as anchor from "@project-serum/anchor";
 import {
   PartiallyDecodedInstruction,
-  ParsedConfirmedTransaction,
-  PublicKey,
+  ParsedTransactionWithMeta,
 } from "@solana/web3.js";
 import { ZetaTransaction, Instruction } from "./types";
 import * as zetaTypes from "./instruction-types";
 import { PROGRAM_ID } from "./constants";
 
-let coder = new anchor.Coder(idl as anchor.Idl);
+function flattenNestedAccounts(x: any) {
+  if (x.accounts) {
+    return x.accounts.flatMap(flattenNestedAccounts);
+  } else {
+    return x;
+  }
+}
+
+let coder = new anchor.BorshCoder(idl as anchor.Idl);
 const idlAccountMap = new Map(
-  idl.instructions.map((x) => [x.name, x.accounts])
+  idl.instructions.map((x) => [x.name, flattenNestedAccounts(x)])
 );
 
 // TODO: get authority account
@@ -210,6 +217,26 @@ function parseZetaInstruction(ix: PartiallyDecodedInstruction): Instruction {
       };
       break;
 
+    case "placeOrderV2":
+      // price: number;
+      // size: number;
+      // side: Side;
+      // orderType: orderType
+      // clientOrderId: number | undefined;
+      let placeOrderV2Data = decodedIx.data as zetaTypes.placeOrderV2;
+      decodedIx.data = {
+        price: utils.convertNativeBNToDecimal(placeOrderV2Data.price),
+        size: utils.convertNativeLotSizeToDecimal(
+          placeOrderV2Data.size.toNumber()
+        ),
+        side: Object.keys(placeOrderV2Data.side)[0],
+        orderType: Object.keys(placeOrderV2Data.orderType)[0],
+        clientOrderId: placeOrderV2Data.clientOrderId
+          ? placeOrderV2Data.clientOrderId.toString()
+          : placeOrderV2Data.clientOrderId,
+      };
+      break;
+
     case "cancelOrder":
       // side: Side;
       // orderId: number;
@@ -260,7 +287,7 @@ function parseZetaInstruction(ix: PartiallyDecodedInstruction): Instruction {
 }
 
 export function parseZetaTransaction(
-  tx: ParsedConfirmedTransaction
+  tx: ParsedTransactionWithMeta
 ): ZetaTransaction {
   let parsedInstructions: Instruction[];
   let instructions = tx.transaction.message.instructions.flatMap(

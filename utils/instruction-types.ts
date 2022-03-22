@@ -221,9 +221,12 @@ export interface UpdateGreeksArgs {
   volatility: number;
 }
 
+// Does this need updating for enums?
 export interface ExpirySeriesStatus {}
 
 export interface Kind {}
+
+export interface OrderType {}
 
 export interface Side {}
 
@@ -369,6 +372,14 @@ export interface placeOrder {
   price: anchor.BN;
   size: anchor.BN;
   side: Side;
+  clientOrderId: anchor.BN | null;
+}
+
+export interface placeOrderV2 {
+  price: anchor.BN;
+  size: anchor.BN;
+  side: Side;
+  orderType: OrderType;
   clientOrderId: anchor.BN | null;
 }
 

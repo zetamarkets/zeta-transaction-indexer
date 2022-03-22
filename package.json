@@ -1,7 +1,7 @@
 {
   "dependencies": {
     "@solana/web3.js": "^1.18.0",
-    "@zetamarkets/sdk": "^0.10.1",
+    "@zetamarkets/sdk": "^0.13.0",
     "aws-sdk": "^2.1047.0",
     "buffer-layout": "^1.2.2",
     "date-and-time": "^2.1.0",
