@@ -36,7 +36,7 @@ export async function scrapeTransactionBatch(
 
   let sigs = sigInfos.map((x) => x.signature);
 
-  let txs = await connection.getParsedConfirmedTransactions(sigs);
+  let txs = await connection.getParsedTransactions(sigs);
   txs = txs.filter((tx) => tx); // remove nulls
   // Chop off the straggler transactions from each end
   // We basically don't have a guarantee that those txes are in complete blocks
