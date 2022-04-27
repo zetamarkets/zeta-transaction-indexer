@@ -237,6 +237,28 @@ function parseZetaInstruction(ix: PartiallyDecodedInstruction): Instruction {
       };
       break;
 
+    case "placeOrderV3":
+      // price: number;
+      // size: number;
+      // side: Side;
+      // orderType: orderType
+      // clientOrderId: number | undefined;
+      // tag: String | undefined;
+      let placeOrderV3Data = decodedIx.data as zetaTypes.placeOrderV3;
+      decodedIx.data = {
+        price: utils.convertNativeBNToDecimal(placeOrderV3Data.price),
+        size: utils.convertNativeLotSizeToDecimal(
+          placeOrderV3Data.size.toNumber()
+        ),
+        side: Object.keys(placeOrderV3Data.side)[0],
+        orderType: Object.keys(placeOrderV3Data.orderType)[0],
+        clientOrderId: placeOrderV3Data.clientOrderId
+          ? placeOrderV3Data.clientOrderId.toString()
+          : placeOrderV3Data.clientOrderId,
+        tag: placeOrderV3Data.tag,
+      };
+      break;
+
     case "cancelOrder":
       // side: Side;
       // orderId: number;
@@ -269,7 +291,8 @@ function parseZetaInstruction(ix: PartiallyDecodedInstruction): Instruction {
     case "cancelExpiredOrder":
       // side: Side;
       // orderId: number;
-      let cancelExpiredOrderData = decodedIx.data as zetaTypes.cancelExpiredOrder;
+      let cancelExpiredOrderData =
+        decodedIx.data as zetaTypes.cancelExpiredOrder;
       decodedIx.data = {
         side: Object.keys(cancelExpiredOrderData.side)[0],
         orderId: cancelExpiredOrderData.orderId.toString(),
@@ -289,7 +312,7 @@ function parseZetaInstruction(ix: PartiallyDecodedInstruction): Instruction {
       // size: number;
       let liquidateData = decodedIx.data as zetaTypes.liquidate;
       decodedIx.data = {
-        size: utils.convertNativeLotSizeToDecimal(liquidateData.size)
+        size: utils.convertNativeLotSizeToDecimal(liquidateData.size),
       };
       break;
   }

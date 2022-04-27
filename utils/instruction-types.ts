@@ -383,6 +383,15 @@ export interface placeOrderV2 {
   clientOrderId: anchor.BN | null;
 }
 
+export interface placeOrderV3 {
+  price: anchor.BN;
+  size: anchor.BN;
+  side: Side;
+  orderType: OrderType;
+  clientOrderId: anchor.BN | null;
+  tag: String | null;
+}
+
 export interface cancelOrder {
   side: Side;
   orderId: anchor.BN;
