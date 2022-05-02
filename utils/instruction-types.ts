@@ -418,5 +418,5 @@ export interface crankEventQueue {}
 export interface rebalanceInsuranceVault {}
 
 export interface liquidate {
-  size: number;
+  size: anchor.BN;
 }

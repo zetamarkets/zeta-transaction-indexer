@@ -312,7 +312,9 @@ function parseZetaInstruction(ix: PartiallyDecodedInstruction): Instruction {
       // size: number;
       let liquidateData = decodedIx.data as zetaTypes.liquidate;
       decodedIx.data = {
-        size: utils.convertNativeLotSizeToDecimal(liquidateData.size),
+        size: utils.convertNativeLotSizeToDecimal(
+          liquidateData.size.toNumber()
+        ),
       };
       break;
   }
