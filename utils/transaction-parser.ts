@@ -231,9 +231,7 @@ function parseZetaInstruction(ix: PartiallyDecodedInstruction): Instruction {
         ),
         side: Object.keys(placeOrderV2Data.side)[0],
         orderType: Object.keys(placeOrderV2Data.orderType)[0],
-        clientOrderId: placeOrderV2Data.clientOrderId
-          ? placeOrderV2Data.clientOrderId.toString()
-          : placeOrderV2Data.clientOrderId,
+        clientOrderId: placeOrderV2Data.clientOrderId?.toString(),
       };
       break;
 
@@ -252,10 +250,8 @@ function parseZetaInstruction(ix: PartiallyDecodedInstruction): Instruction {
         ),
         side: Object.keys(placeOrderV3Data.side)[0],
         orderType: Object.keys(placeOrderV3Data.orderType)[0],
-        clientOrderId: placeOrderV3Data.clientOrderId
-          ? placeOrderV3Data.clientOrderId.toString()
-          : placeOrderV3Data.clientOrderId,
-        tag: placeOrderV3Data.tag,
+        clientOrderId: placeOrderV3Data.clientOrderId?.toString(),
+        tag: placeOrderV3Data?.tag,
       };
       break;
 
