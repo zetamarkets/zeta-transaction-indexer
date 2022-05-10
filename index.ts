@@ -53,11 +53,6 @@ export async function scrapeTransactionBatch(
   }
   // Parse transactions using program IDL
   let parsedTxs = txs.map(parseZetaTransaction);
-  for (let tx of parsedTxs) {
-    if (tx.events != undefined) {
-      console.log(tx.events);
-    }
-  }
 
   let latestProcessedSig = parsedTxs[0].transaction_id;
   let earliestProcessedSig = parsedTxs[parsedTxs.length - 1].transaction_id;

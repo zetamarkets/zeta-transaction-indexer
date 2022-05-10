@@ -276,7 +276,6 @@ function parseZetaInstruction(ix: PartiallyDecodedInstruction): Instruction {
       // orderType: orderType
       // clientOrderId: number | undefined;
       // tag: String | undefined;
-
       let placeOrderV3Data = decodedIx.data as zetaTypes.placeOrderV3;
       decodedIx.data = {
         price: utils.convertNativeBNToDecimal(placeOrderV3Data.price),
