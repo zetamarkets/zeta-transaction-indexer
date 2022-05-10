@@ -21,6 +21,8 @@ const idlAccountMap = new Map(
   idl.instructions.map((x) => [x.name, flattenNestedAccounts(x)])
 );
 
+let eventParser = new anchor.EventParser(PROGRAM_ID, coder);
+
 // TODO: get authority account
 function parseZetaInstructionAccounts(
   ix_name: string,
@@ -242,6 +244,7 @@ function parseZetaInstruction(ix: PartiallyDecodedInstruction): Instruction {
       // orderType: orderType
       // clientOrderId: number | undefined;
       // tag: String | undefined;
+
       let placeOrderV3Data = decodedIx.data as zetaTypes.placeOrderV3;
       decodedIx.data = {
         price: utils.convertNativeBNToDecimal(placeOrderV3Data.price),
@@ -326,6 +329,7 @@ export function parseZetaTransaction(
   tx: ParsedTransactionWithMeta
 ): ZetaTransaction {
   let parsedInstructions: Instruction[];
+  let parsedEvents;
   let instructions = tx.transaction.message.instructions.flatMap(
     (ix, index) => {
       // Handle CPI instructions, replace them with inner Zeta ixs
@@ -342,6 +346,11 @@ export function parseZetaTransaction(
       }
     }
   );
+
+  eventParser.parseLogs(tx.meta.logMessages, (event) => {
+    parsedEvents = event;
+  });
+
   parsedInstructions = instructions.map((ix) =>
     parseZetaInstruction(ix as PartiallyDecodedInstruction)
   );
@@ -357,5 +366,6 @@ export function parseZetaTransaction(
     instructions: parsedInstructions,
     log_messages: tx.meta.logMessages,
     fetch_timestamp: Math.floor(Date.now() / 1000),
+    events: parsedEvents,
   };
 }

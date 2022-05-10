@@ -3,6 +3,7 @@ version: 0.2
 env:
   parameter-store:
     REGION: "region"
+    IGNORE_AWS_PUSH: "false"
 
 phases:
   pre_build:

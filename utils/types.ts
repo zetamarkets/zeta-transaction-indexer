@@ -57,6 +57,7 @@ export interface ZetaTransaction {
   instructions: Instruction[];
   log_messages: string[];
   fetch_timestamp: number;
+  events: Event[];
 }
 
 export interface TableIndices {

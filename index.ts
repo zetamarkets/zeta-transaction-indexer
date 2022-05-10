@@ -53,6 +53,11 @@ export async function scrapeTransactionBatch(
   }
   // Parse transactions using program IDL
   let parsedTxs = txs.map(parseZetaTransaction);
+  for (let tx of parsedTxs) {
+    if (tx.events != undefined) {
+      console.log(tx.events);
+    }
+  }
 
   let latestProcessedSig = parsedTxs[0].transaction_id;
   let earliestProcessedSig = parsedTxs[parsedTxs.length - 1].transaction_id;
@@ -64,8 +69,10 @@ export async function scrapeTransactionBatch(
     parsedTxs[sigs.length - 1]?.block_timestamp * 1000
   )})`);
 
-  // putS3Batch(parsedTxs, process.env.S3_BUCKET_NAME);
-  putFirehoseBatch(parsedTxs, process.env.FIREHOSE_DS_NAME_TRANSACTIONS);
+  if (!process.env.IGNORE_AWS_PUSH) {
+    // putS3Batch(parsedTxs, process.env.S3_BUCKET_NAME);
+    putFirehoseBatch(parsedTxs, process.env.FIREHOSE_DS_NAME_TRANSACTIONS);
+  }
   return {
     sig_len: sigInfos.length,
     latestProcessedSig: latestProcessedSig,
@@ -93,7 +100,7 @@ const indexingLoop = async () => {
       }
       earliestProcessedSig = r.earliestProcessedSig;
       // If indices actually need to be updated (sigs length > 0)
-      if (r.sig_len > 0) {
+      if (r.sig_len > 0 && !process.env.IGNORE_AWS_PUSH) {
         await putTxIndexMetadata(
           process.env.S3_BUCKET_NAME,
           earliestProcessedSig,
