@@ -37,6 +37,38 @@ function parseZetaInstructionAccounts(
   return namedAccounts;
 }
 
+function enrichPlaceOrder(instructions: Instruction[], events: anchor.Event[]) {
+  if (events == undefined || events.length == 0) {
+    return;
+  }
+
+  // We can have multiple PlaceOrders in a single transaction, so keep track of how deep we've searched
+  let currentInstruction = 0;
+
+  for (var event = 0; event < events.length; event++) {
+    // Guaranteed to have 1 PlaceOrderEvent for each placeOrder instruction
+    if (events[event].name === "PlaceOrderEvent") {
+      // Find the corresponding placeOrder for a given PlaceOrderEvent
+      for (var i = currentInstruction; i < instructions.length; i++) {
+        if (instructions[i].name.startsWith("placeOrder")) {
+          let fee = events[event].data.fee as anchor.BN;
+          let oraclePrice = events[event].data.oraclePrice as anchor.BN;
+
+          // Enrich the placeOrder Ix using data from the corresponding PlaceOrderEvent
+          instructions[i].instruction["fee"] =
+            utils.convertNativeBNToDecimal(fee);
+          instructions[i].instruction["oraclePrice"] =
+            utils.convertNativeBNToDecimal(oraclePrice);
+          instructions[i].instruction["orderId"] =
+            events[event].data.orderId.toString();
+          currentInstruction = i + 1;
+          break;
+        }
+      }
+    }
+  }
+}
+
 function parseZetaInstruction(ix: PartiallyDecodedInstruction): Instruction {
   let decodedIx = coder.instruction.decode(ix.data, "base58");
   if (decodedIx == null) {
@@ -329,7 +361,6 @@ export function parseZetaTransaction(
   tx: ParsedTransactionWithMeta
 ): ZetaTransaction {
   let parsedInstructions: Instruction[];
-  let parsedEvents;
   let instructions = tx.transaction.message.instructions.flatMap(
     (ix, index) => {
       // Handle CPI instructions, replace them with inner Zeta ixs
@@ -347,13 +378,17 @@ export function parseZetaTransaction(
     }
   );
 
+  let parsedEvents = [];
   eventParser.parseLogs(tx.meta.logMessages, (event) => {
-    parsedEvents = event;
+    parsedEvents.push(event);
   });
 
   parsedInstructions = instructions.map((ix) =>
     parseZetaInstruction(ix as PartiallyDecodedInstruction)
   );
+
+  enrichPlaceOrder(parsedInstructions, parsedEvents);
+
   return {
     transaction_id: tx.transaction.signatures[0],
     block_timestamp: tx.blockTime,
@@ -366,6 +401,5 @@ export function parseZetaTransaction(
     instructions: parsedInstructions,
     log_messages: tx.meta.logMessages,
     fetch_timestamp: Math.floor(Date.now() / 1000),
-    events: parsedEvents,
   };
 }
