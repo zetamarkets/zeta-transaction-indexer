@@ -1,5 +1,5 @@
 import { Connection } from "@solana/web3.js";
-import { getTxIndexMetadata, putS3Batch, putTxIndexMetadata } from "./utils/s3";
+import { getTxIndexMetadata, putTxIndexMetadata } from "./utils/s3";
 import { putFirehoseBatch } from "./utils/firehose";
 import { parseZetaTransaction } from "./utils/transaction-parser";
 import {
@@ -69,7 +69,6 @@ export async function scrapeTransactionBatch(
   )})`);
 
   if (!DEBUG_MODE) {
-    // putS3Batch(parsedTxs, process.env.S3_BUCKET_NAME);
     putFirehoseBatch(parsedTxs, process.env.FIREHOSE_DS_NAME_TRANSACTIONS);
   }
   return {
