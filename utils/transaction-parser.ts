@@ -21,6 +21,8 @@ const idlAccountMap = new Map(
   idl.instructions.map((x) => [x.name, flattenNestedAccounts(x)])
 );
 
+let eventParser = new anchor.EventParser(PROGRAM_ID, coder);
+
 // TODO: get authority account
 function parseZetaInstructionAccounts(
   ix_name: string,
@@ -33,6 +35,40 @@ function parseZetaInstructionAccounts(
     namedAccounts[k] = ix.accounts[i].toString();
   });
   return namedAccounts;
+}
+
+function enrichPlaceOrder(instructions: Instruction[], events: anchor.Event[]) {
+  if (events == undefined || events.length == 0) {
+    return;
+  }
+
+  // We can have multiple PlaceOrders in a single transaction, so keep track of how deep we've searched
+  let currentInstruction = 0;
+
+  for (var event = 0; event < events.length; event++) {
+    // Guaranteed to have 1 PlaceOrderEvent for each placeOrder instruction
+    if (events[event].name === "PlaceOrderEvent") {
+      // Find the corresponding placeOrder for a given PlaceOrderEvent
+      for (var i = currentInstruction; i < instructions.length; i++) {
+        if (instructions[i].name.startsWith("placeOrder")) {
+          let fee = events[event].data.fee as anchor.BN;
+          let oraclePrice = events[event].data.oraclePrice as anchor.BN;
+
+          // Enrich the placeOrder Ix using data from the corresponding PlaceOrderEvent
+          instructions[i].instruction["tradingFee"] =
+            utils.convertNativeBNToDecimal(fee);
+          instructions[i].instruction["oraclePrice"] =
+            utils.convertNativeBNToDecimal(oraclePrice);
+          instructions[i].instruction["orderId"] =
+            events[event].data.orderId.toString();
+          // TODO change to use events[event].data.isTaker once the program is in mainnet
+          instructions[i].instruction["isTaker"] = events[event].data.fee != 0;
+          currentInstruction = i + 1;
+          break;
+        }
+      }
+    }
+  }
 }
 
 function parseZetaInstruction(ix: PartiallyDecodedInstruction): Instruction {
@@ -342,9 +378,18 @@ export function parseZetaTransaction(
       }
     }
   );
+
+  let parsedEvents = [];
+  eventParser.parseLogs(tx.meta.logMessages, (event) => {
+    parsedEvents.push(event);
+  });
+
   parsedInstructions = instructions.map((ix) =>
     parseZetaInstruction(ix as PartiallyDecodedInstruction)
   );
+
+  enrichPlaceOrder(parsedInstructions, parsedEvents);
+
   return {
     transaction_id: tx.transaction.signatures[0],
     block_timestamp: tx.blockTime,

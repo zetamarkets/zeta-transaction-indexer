@@ -16,4 +16,5 @@ RUN yarn install
 COPY . .
 
 EXPOSE 8080
-CMD [ "yarn", "run", "start" ]
+# Add "--debug" to this array to not push anything to AWS buckets
+CMD [ "yarn", "run", "start"]

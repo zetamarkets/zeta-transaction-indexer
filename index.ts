@@ -1,8 +1,12 @@
 import { Connection } from "@solana/web3.js";
-import { getTxIndexMetadata, putS3Batch, putTxIndexMetadata } from "./utils/s3";
+import { getTxIndexMetadata, putTxIndexMetadata } from "./utils/s3";
 import { putFirehoseBatch } from "./utils/firehose";
 import { parseZetaTransaction } from "./utils/transaction-parser";
-import { PROGRAM_ID, MAX_SIGNATURE_BATCH_SIZE } from "./utils/constants";
+import {
+  PROGRAM_ID,
+  MAX_SIGNATURE_BATCH_SIZE,
+  DEBUG_MODE,
+} from "./utils/constants";
 import { sleep } from "@zetamarkets/sdk/dist/utils";
 
 let connection = new Connection(process.env.RPC_URL, "finalized");
@@ -64,8 +68,9 @@ export async function scrapeTransactionBatch(
     parsedTxs[sigs.length - 1]?.block_timestamp * 1000
   )})`);
 
-  // putS3Batch(parsedTxs, process.env.S3_BUCKET_NAME);
-  putFirehoseBatch(parsedTxs, process.env.FIREHOSE_DS_NAME_TRANSACTIONS);
+  if (!DEBUG_MODE) {
+    putFirehoseBatch(parsedTxs, process.env.FIREHOSE_DS_NAME_TRANSACTIONS);
+  }
   return {
     sig_len: sigInfos.length,
     latestProcessedSig: latestProcessedSig,
@@ -93,7 +98,7 @@ const indexingLoop = async () => {
       }
       earliestProcessedSig = r.earliestProcessedSig;
       // If indices actually need to be updated (sigs length > 0)
-      if (r.sig_len > 0) {
+      if (r.sig_len > 0 && !DEBUG_MODE) {
         await putTxIndexMetadata(
           process.env.S3_BUCKET_NAME,
           earliestProcessedSig,
@@ -115,6 +120,9 @@ export const refreshExchange = async () => {
 };
 
 const main = async () => {
+  if (DEBUG_MODE) {
+    console.log("Running in debug mode, will not push to AWS buckets");
+  }
   indexingLoop();
 
   setInterval(async () => {
