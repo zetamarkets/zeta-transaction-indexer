@@ -55,12 +55,14 @@ function enrichPlaceOrder(instructions: Instruction[], events: anchor.Event[]) {
           let oraclePrice = events[event].data.oraclePrice as anchor.BN;
 
           // Enrich the placeOrder Ix using data from the corresponding PlaceOrderEvent
-          instructions[i].instruction["fee"] =
+          instructions[i].instruction["tradingFee"] =
             utils.convertNativeBNToDecimal(fee);
           instructions[i].instruction["oraclePrice"] =
             utils.convertNativeBNToDecimal(oraclePrice);
           instructions[i].instruction["orderId"] =
             events[event].data.orderId.toString();
+          // TODO change to use events[event].data.isTaker once the program is in mainnet
+          instructions[i].instruction["isTaker"] = events[event].data.fee != 0;
           currentInstruction = i + 1;
           break;
         }
