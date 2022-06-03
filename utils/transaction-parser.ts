@@ -37,12 +37,15 @@ function parseZetaInstructionAccounts(
   return namedAccounts;
 }
 
-function enrichPlaceOrder(instructions: Instruction[], events: anchor.Event[]) {
+function enrichInstructions(
+  instructions: Instruction[],
+  events: anchor.Event[]
+) {
   if (events == undefined || events.length == 0) {
     return;
   }
 
-  // We can have multiple PlaceOrders in a single transaction, so keep track of how deep we've searched
+  // We can have multiple instructions in a single transaction, so keep track of how deep we've searched
   let currentPlaceOrderInstruction = 0;
   let currentLiquidateInstruction = 0;
 
@@ -430,7 +433,7 @@ export function parseZetaTransaction(
     parseZetaInstruction(ix as PartiallyDecodedInstruction)
   );
 
-  enrichPlaceOrder(parsedInstructions, parsedEvents);
+  enrichInstructions(parsedInstructions, parsedEvents);
 
   return {
     transaction_id: tx.transaction.signatures[0],
