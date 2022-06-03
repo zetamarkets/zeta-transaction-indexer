@@ -301,6 +301,17 @@ function parseZetaInstruction(ix: PartiallyDecodedInstruction): Instruction {
       };
       break;
 
+    case "cancelOrderNoError":
+      // side: Side;
+      // orderId: number;
+      let cancelOrderNoErrorData =
+        decodedIx.data as zetaTypes.cancelOrderNoError;
+      decodedIx.data = {
+        side: Object.keys(cancelOrderNoErrorData.side)[0],
+        orderId: cancelOrderNoErrorData.orderId.toString(),
+      };
+      break;
+
     case "cancelOrderHalted":
       // side: Side;
       // orderId: number;
@@ -317,6 +328,16 @@ function parseZetaInstruction(ix: PartiallyDecodedInstruction): Instruction {
         decodedIx.data as zetaTypes.cancelOrderByClientOrderId;
       decodedIx.data = {
         clientOrderId: cancelOrderByClientOrderIdData.clientOrderId.toString(),
+      };
+      break;
+
+    case "cancelOrderByClientOrderIdNoError":
+      // clientOrderId: number;
+      let cancelOrderByClientOrderIdNoErrorData =
+        decodedIx.data as zetaTypes.cancelOrderByClientOrderIdNoError;
+      decodedIx.data = {
+        clientOrderId:
+          cancelOrderByClientOrderIdNoErrorData.clientOrderId.toString(),
       };
       break;
 
