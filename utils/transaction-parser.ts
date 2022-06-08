@@ -37,19 +37,23 @@ function parseZetaInstructionAccounts(
   return namedAccounts;
 }
 
-function enrichPlaceOrder(instructions: Instruction[], events: anchor.Event[]) {
+function enrichInstructions(
+  instructions: Instruction[],
+  events: anchor.Event[]
+) {
   if (events == undefined || events.length == 0) {
     return;
   }
 
-  // We can have multiple PlaceOrders in a single transaction, so keep track of how deep we've searched
-  let currentInstruction = 0;
+  // We can have multiple instructions in a single transaction, so keep track of how deep we've searched
+  let currentPlaceOrderInstruction = 0;
+  let currentLiquidateInstruction = 0;
 
   for (var event = 0; event < events.length; event++) {
     // Guaranteed to have 1 PlaceOrderEvent for each placeOrder instruction
     if (events[event].name === "PlaceOrderEvent") {
       // Find the corresponding placeOrder for a given PlaceOrderEvent
-      for (var i = currentInstruction; i < instructions.length; i++) {
+      for (var i = currentPlaceOrderInstruction; i < instructions.length; i++) {
         if (instructions[i].name.startsWith("placeOrder")) {
           let fee = events[event].data.fee as anchor.BN;
           let oraclePrice = events[event].data.oraclePrice as anchor.BN;
@@ -63,8 +67,49 @@ function enrichPlaceOrder(instructions: Instruction[], events: anchor.Event[]) {
             events[event].data.orderId.toString();
           // TODO change to use events[event].data.isTaker once the program is in mainnet
           instructions[i].instruction["isTaker"] = events[event].data.fee != 0;
-          currentInstruction = i + 1;
+          currentPlaceOrderInstruction = i + 1;
           break;
+        }
+      }
+      // Guaranteed to have 1 LiquidationEvent for each liquidate instruction
+    } else if (events[event].name == "LiquidationEvent") {
+      // Find the corresponding liquidate for a given LiquidationEvent
+      for (var i = currentLiquidateInstruction; i < instructions.length; i++) {
+        if (instructions[i].name.startsWith("liquidate")) {
+          // Enrich the liquidate Ix using data from the corresponding LiquidationEvent
+          instructions[i].instruction["liquidator_reward"] =
+            utils.convertNativeBNToDecimal(
+              events[event].data.liquidatorReward as anchor.BN
+            );
+          instructions[i].instruction["insurance_reward"] =
+            utils.convertNativeBNToDecimal(
+              events[event].data.insuranceReward as anchor.BN
+            );
+          instructions[i].instruction["cost_of_trades"] =
+            utils.convertNativeBNToDecimal(
+              events[event].data.costOfTrades as anchor.BN
+            );
+          instructions[i].instruction["size"] =
+            utils.convertNativeLotSizeToDecimal(
+              events[event].data.size as number
+            );
+          instructions[i].instruction["remaining_liquidatee_balance"] =
+            utils.convertNativeLotSizeToDecimal(
+              events[event].data.remainingLiquidateeBalance as number
+            );
+          instructions[i].instruction["remaining_liquidator_balance"] =
+            utils.convertNativeLotSizeToDecimal(
+              events[event].data.remainingLiquidatorBalance as number
+            );
+          instructions[i].instruction["mark_price"] =
+            utils.convertNativeBNToDecimal(
+              events[event].data.markPrice as anchor.BN
+            );
+          instructions[i].instruction["underlying_price"] =
+            utils.convertNativeBNToDecimal(
+              events[event].data.underlyingPrice as anchor.BN
+            );
+          currentLiquidateInstruction = i + 1;
         }
       }
     }
@@ -409,7 +454,7 @@ export function parseZetaTransaction(
     parseZetaInstruction(ix as PartiallyDecodedInstruction)
   );
 
-  enrichPlaceOrder(parsedInstructions, parsedEvents);
+  enrichInstructions(parsedInstructions, parsedEvents);
 
   return {
     transaction_id: tx.transaction.signatures[0],
