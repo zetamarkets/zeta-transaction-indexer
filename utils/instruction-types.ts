@@ -397,12 +397,21 @@ export interface cancelOrder {
   orderId: anchor.BN;
 }
 
+export interface cancelOrderNoError {
+  side: Side;
+  orderId: anchor.BN;
+}
+
 export interface cancelOrderHalted {
   side: Side;
   orderId: anchor.BN;
 }
 
 export interface cancelOrderByClientOrderId {
+  clientOrderId: anchor.BN;
+}
+
+export interface cancelOrderByClientOrderIdNoError {
   clientOrderId: anchor.BN;
 }
 
