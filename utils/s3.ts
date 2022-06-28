@@ -15,7 +15,7 @@ export const putTxIndexMetadata = async (
   await s3
     .putObject({
       Bucket: bucketName,
-      Key: `transactions/raw/indexer-checkpoint/signature-indices.json`,
+      Key: `transactions/checkpoint.json`,
       Body: data,
       ContentType: "application/json",
     })
@@ -30,7 +30,7 @@ export const getTxIndexMetadata = async (
     const data = await s3
       .getObject({
         Bucket: bucketName,
-        Key: `transactions/raw/indexer-checkpoint/signature-indices.json`,
+        Key: `transactions/checkpoint.json`,
       })
       .promise();
     return JSON.parse(data.Body.toString("utf-8"));

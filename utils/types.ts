@@ -1,5 +1,4 @@
 import { Kind } from "@zetamarkets/sdk/dist/types";
-import { TransactionError } from "@solana/web3.js";
 
 export interface EventQueueHeader {
   head: number;
