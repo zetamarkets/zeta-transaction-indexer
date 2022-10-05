@@ -171,9 +171,9 @@ export async function scrapeTransactionBatch(
     txs[txs.length - 1]?.blockTime * 1000
   )})`);
 
-  // if (!DEBUG_MODE) {
-  //   putFirehoseBatch(txs, process.env.FIREHOSE_DS_NAME_TRANSACTIONS);
-  // }
+  if (!DEBUG_MODE) {
+    putFirehoseBatch(txs, process.env.FIREHOSE_DS_NAME_TRANSACTIONS);
+  }
   return {
     sig_len: sigInfos.length,
     latestProcessedSig: latestProcessedSig,

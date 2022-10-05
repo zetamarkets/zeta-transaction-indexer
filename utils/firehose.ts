@@ -1,3 +1,4 @@
+import { ParsedTransactionWithMeta } from "@solana/web3.js";
 import AWS from "aws-sdk";
 import { AWSOptions } from "./aws-config";
 import { ZetaTransaction } from "./types";
@@ -5,7 +6,7 @@ import { ZetaTransaction } from "./types";
 let firehose = new AWS.Firehose(AWSOptions);
 
 export const putFirehoseBatch = (
-  data: ZetaTransaction[],
+  data: ParsedTransactionWithMeta[],
   deliveryStreamName: string
 ) => {
   if (!data.length) return;
