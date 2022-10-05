@@ -1,7 +1,6 @@
 import { Connection } from "@solana/web3.js";
 import { getTxIndexMetadata, putTxIndexMetadata } from "./utils/s3";
 import { putFirehoseBatch } from "./utils/firehose";
-import { parseZetaTransaction } from "./utils/transaction-parser";
 import {
   PROGRAM_ID,
   MAX_SIGNATURE_BATCH_SIZE,
@@ -41,7 +40,15 @@ export async function scrapeTransactionBatch(
   let sigs = sigInfos.map((x) => x.signature);
 
   let txs = await connection.getParsedTransactions(sigs);
+  // console.log(txs);
+
+  // let txs = await connection.getTransactions(sigs, {
+  //   commitment: "finalized",
+  //   maxSupportedTransactionVersion: 0,
+  // });
+
   txs = txs.filter((tx) => tx); // remove nulls
+  
   // Chop off the straggler transactions from each end
   // We basically don't have a guarantee that those txes are in complete blocks
   // which can mess up due to non-deterministic intra-block ordering
@@ -55,22 +62,18 @@ export async function scrapeTransactionBatch(
       earliestProcessedSig: undefined,
     };
   }
-  // Parse transactions using program IDL
-  let parsedTxs = txs.map(parseZetaTransaction);
 
-  let latestProcessedSig = parsedTxs[0].transaction_id;
-  let earliestProcessedSig = parsedTxs[parsedTxs.length - 1].transaction_id;
-  console.log(`Fetched tx range (${parsedTxs.length} txs): 
-  latest: ${latestProcessedSig} (${new Date(
-    parsedTxs[0]?.block_timestamp * 1000
-  )})
+  let latestProcessedSig = txs[0].transaction.signatures[0];
+  let earliestProcessedSig = txs[txs.length - 1].transaction.signatures[0];
+  console.log(`Fetched tx range (${txs.length} txs): 
+  latest: ${latestProcessedSig} (${new Date(txs[0]?.blockTime * 1000)})
   earliest: ${earliestProcessedSig} (${new Date(
-    parsedTxs[sigs.length - 1]?.block_timestamp * 1000
+    txs[sigs.length - 1]?.blockTime * 1000
   )})`);
 
-  if (!DEBUG_MODE) {
-    putFirehoseBatch(parsedTxs, process.env.FIREHOSE_DS_NAME_TRANSACTIONS);
-  }
+  // if (!DEBUG_MODE) {
+  //   putFirehoseBatch(txs, process.env.FIREHOSE_DS_NAME_TRANSACTIONS);
+  // }
   return {
     sig_len: sigInfos.length,
     latestProcessedSig: latestProcessedSig,
@@ -115,20 +118,11 @@ const indexingLoop = async () => {
   }
 };
 
-export const refreshExchange = async () => {
-  connection = new Connection(process.env.RPC_URL, "finalized");
-};
-
 const main = async () => {
   if (DEBUG_MODE) {
     console.log("Running in debug mode, will not push to AWS buckets");
   }
   indexingLoop();
-
-  setInterval(async () => {
-    console.log("%cRefreshing Exchange", "color: cyan");
-    refreshExchange();
-  }, 1000 * 60 * 30); // Refresh every 30 minutes
 };
 
 main().catch(console.error.bind(console));

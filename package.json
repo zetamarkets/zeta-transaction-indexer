@@ -1,21 +1,15 @@
 {
   "dependencies": {
-    "@solana/web3.js": "^1.18.0",
-    "@zetamarkets/sdk": "^0.14.2",
+    "@solana/web3.js": "^1.31.0",
+    "@zetamarkets/sdk": "^0.16.17",
     "aws-sdk": "^2.1047.0",
     "buffer-layout": "^1.2.2",
     "date-and-time": "^2.1.0",
-    "ts-node": "^7.0.1",
+    "ts-node": "^10.7.0",
     "typescript": "^4.4.3"
-  },
-  "devDependencies": {
-    "ts-morph": "^13.0.2"
   },
   "scripts": {
     "start": "ts-node --transpile-only index.ts",
     "build": "tsc --outDir ./dist"
-  },
-  "engines": {
-    "node": "16.x"
   }
 }
