@@ -14,6 +14,8 @@ import {
 } from "@solana/web3.js";
 import { getTxIndexMetadata, putTxIndexMetadata } from "./utils/s3";
 import { putFirehoseBatch } from "./utils/firehose";
+import { SolanaRPC } from "./utils/rpc";
+import { spliceIntoChunks } from "./utils/utils";
 import {
   PROGRAM_ID,
   MAX_SIGNATURE_BATCH_SIZE,
@@ -22,100 +24,11 @@ import {
 } from "./utils/constants";
 import { sleep } from "@zetamarkets/sdk/dist/utils";
 
-class SolanaRPC {
-  nodeUrl;
-  commitmentOrConfig;
-  connection;
-  NODE_URL_1;
-  NODE_URL_2;
-  period;
-  MAX_NODE_THRESHOLD = 10000;
-
-  constructor(
-    nodeUrl1,
-    nodeUrl2?,
-    commitmentOrConfig?: Commitment | ConnectionConfig
-  ) {
-    this.nodeUrl = nodeUrl1;
-    this.commitmentOrConfig = commitmentOrConfig;
-    this.connection = new Connection(this.nodeUrl, this.commitmentOrConfig);
-    this.NODE_URL_1 = nodeUrl1;
-    this.NODE_URL_2 = nodeUrl2 || "https://solana-api.projectserum.com";
-    this.period = 100;
-    console.log(`Using RPC: ${this.nodeUrl}`);
-  }
-
-  backoff() {
-    console.log("Backing off");
-    if (this.period > this.MAX_NODE_THRESHOLD) {
-      if (this.nodeUrl == this.NODE_URL_1) {
-        this.nodeUrl = this.NODE_URL_2;
-      } else {
-        this.nodeUrl = this.NODE_URL_1;
-      }
-      this.connection = new Connection(this.nodeUrl, this.commitmentOrConfig);
-      console.log(`Switching to RPC node: ${this.nodeUrl}`);
-      this.period = 100;
-    }
-    sleep(this.period);
-    this.period *= 2;
-  }
-
-  getConfirmedSignaturesForAddress2(
-    address: PublicKey,
-    options?: ConfirmedSignaturesForAddress2Options,
-    commitment?: Finality
-  ): Promise<ConfirmedSignatureInfo[]> {
-    while (true) {
-      try {
-        return this.connection.getConfirmedSignaturesForAddress2(
-          address,
-          options,
-          commitment
-        );
-      } catch (error) {
-        console.error(
-          `<RPC> getConfirmedSignaturesForAddress2 failed with error ${error}`
-        );
-        this.backoff();
-      }
-    }
-  }
-
-  getParsedTransactions(
-    signatures: string[],
-    commitmentOrConfig?: Finality | GetVersionedTransactionConfig
-  ): Promise<ParsedTransactionWithMeta[]> {
-    while (true) {
-      try {
-        return this.connection.getParsedTransactions(
-          signatures,
-          commitmentOrConfig
-        );
-      } catch (error) {
-        console.error(`<RPC> getParsedTransactions failed with error ${error}`);
-        this.backoff();
-      }
-    }
-  }
-}
-
-// let connection = new Connection(process.env.RPC_URL, "finalized");
-
 let rpc = new SolanaRPC(
   process.env.RPC_URL_1,
   process.env.RPC_URL_2,
   "finalized"
 );
-
-function spliceIntoChunks(arr, chunkSize) {
-  const res = [];
-  while (arr.length > 0) {
-    const chunk = arr.splice(0, chunkSize);
-    res.push(chunk);
-  }
-  return res;
-}
 
 export async function scrapeTransactionBatch(
   before: string,
@@ -147,7 +60,7 @@ export async function scrapeTransactionBatch(
     await Promise.all(sig_chunks.map((s) => rpc.getParsedTransactions(s)))
   ).flat();
 
-  // txs = txs.filter((tx) => tx); // remove nulls
+  txs = txs.filter((tx) => tx); // remove nulls
 
   // Chop off the straggler transactions from each end
   // We basically don't have a guarantee that those txes are in complete blocks
