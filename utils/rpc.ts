@@ -8,17 +8,19 @@ import {
   ConfirmedSignatureInfo,
   GetVersionedTransactionConfig,
   ParsedTransactionWithMeta,
+  SignaturesForAddressOptions,
 } from "@solana/web3.js";
 import { sleep } from "@zetamarkets/sdk/dist/utils";
+import { int } from "aws-sdk/clients/datapipeline";
 
 export class SolanaRPC {
-  nodeUrl;
-  commitmentOrConfig;
-  connection;
-  NODE_URL_1;
-  NODE_URL_2;
-  period;
-  MAX_NODE_THRESHOLD = 10000;
+  nodeUrl: string;
+  commitmentOrConfig: Commitment | ConnectionConfig;
+  connection: Connection;
+  NODE_URL_1: string;
+  NODE_URL_2: string;
+  period: number;
+  MAX_NODE_THRESHOLD: number = 10000;
 
   constructor(
     nodeUrl1,
@@ -50,25 +52,27 @@ export class SolanaRPC {
     this.period *= 2;
   }
 
-  getConfirmedSignaturesForAddress2(
+  async getSignaturesForAddressWithRetries(
     address: PublicKey,
-    options?: ConfirmedSignaturesForAddress2Options,
+    options?: SignaturesForAddressOptions,
     commitment?: Finality
-  ): Promise<ConfirmedSignatureInfo[]> {
-    while (true) {
+  ) {
+    let sigs: ConfirmedSignatureInfo[];
+    do {
       try {
-        return this.connection.getConfirmedSignaturesForAddress2(
+        sigs = await this.connection.getSignaturesForAddress(
           address,
           options,
           commitment
         );
       } catch (error) {
         console.error(
-          `<RPC> getConfirmedSignaturesForAddress2 failed with error ${error}`
+          `<RPC> getSignaturesForAddress failed with error ${error}`
         );
         this.backoff();
       }
-    }
+    } while (!sigs);
+    return sigs;
   }
 
   getParsedTransactions(

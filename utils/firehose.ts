@@ -11,14 +11,16 @@ export const putFirehoseBatch = (
   deliveryStreamName: string
 ) => {
   if (!data.length) return;
-  const records = data.map((d) => {
-    return { Data: JSON.stringify(d).concat("\n") };
-  });
-  let record_chunks = spliceIntoChunks(records, MAX_FIREHOSE_BATCH_SIZE);
-  let responses = record_chunks.map(async (record_chunk) => {
+  let data_chunks = spliceIntoChunks(data, MAX_FIREHOSE_BATCH_SIZE);
+  let responses = data_chunks.map(async (data_chunk) => {
+    const records = data_chunk.map((d) => {
+      return { Data: JSON.stringify(d).concat("\n") };
+    });
+    console.log(records.length);
+
     let params = {
       DeliveryStreamName: deliveryStreamName /* required */,
-      Records: record_chunk,
+      Records: records,
     };
 
     firehose.putRecordBatch(params, function (err, data) {
@@ -29,5 +31,5 @@ export const putFirehoseBatch = (
       }
     });
   });
-  Promise.all(responses);
+  // Promise.all(responses);
 };

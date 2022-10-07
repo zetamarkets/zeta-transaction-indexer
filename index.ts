@@ -23,6 +23,11 @@ import {
   MAX_TX_BATCH_SIZE,
 } from "./utils/constants";
 import { sleep } from "@zetamarkets/sdk/dist/utils";
+import { Signature } from "typescript";
+import {
+  readSignatureCheckpoint,
+  writeSignatureCheckpoint,
+} from "./utils/dynamodb";
 
 let rpc = new SolanaRPC(
   process.env.RPC_URL_1,
@@ -30,107 +35,39 @@ let rpc = new SolanaRPC(
   "finalized"
 );
 
-export async function scrapeTransactionBatch(
-  before: string,
-  until: string
-): Promise<{
-  sig_len: number;
-  latestProcessedSig: string;
-  earliestProcessedSig: string;
-}> {
-  console.log(`Fetching all txs before ${before}`);
-
-  // Note: this also grabs CPI calls
-  let sigInfos = await rpc.getConfirmedSignaturesForAddress2(PROGRAM_ID, {
-    before: before,
-    until: until,
-    limit: MAX_SIGNATURE_BATCH_SIZE,
-  });
-  if (sigInfos.length == 0) {
-    return {
-      sig_len: 0,
-      latestProcessedSig: before,
-      earliestProcessedSig: undefined,
-    };
-  }
-
-  let sigs = sigInfos.map((x) => x.signature);
-  let sig_chunks = spliceIntoChunks(sigs, MAX_TX_BATCH_SIZE);
-  let txs = (
-    await Promise.all(sig_chunks.map((s) => rpc.getParsedTransactions(s)))
-  ).flat();
-
-  txs = txs.filter((tx) => tx); // remove nulls
-
-  // Chop off the straggler transactions from each end
-  // We basically don't have a guarantee that those txes are in complete blocks
-  // which can mess up due to non-deterministic intra-block ordering
-  // txs = txs.filter(
-  //   (tx) => tx.slot !== txs[0].slot && tx.slot !== txs[txs.length - 1].slot
-  // );
-  if (txs.length == 0) {
-    return {
-      sig_len: 0,
-      latestProcessedSig: before,
-      earliestProcessedSig: undefined,
-    };
-  }
-
-  let latestProcessedSig = txs[0].transaction.signatures[0];
-  let earliestProcessedSig = txs[txs.length - 1].transaction.signatures[0];
-  console.log(`Fetched tx range (${txs.length} txs, ${sigInfos.length} sigs): 
-  latest: ${latestProcessedSig} (${new Date(txs[0]?.blockTime * 1000)})
-  earliest: ${earliestProcessedSig} (${new Date(
-    txs[txs.length - 1]?.blockTime * 1000
-  )})`);
-
-  if (!DEBUG_MODE) {
-    putFirehoseBatch(txs, process.env.FIREHOSE_DS_NAME_TRANSACTIONS);
-  }
-  return {
-    sig_len: sigInfos.length,
-    latestProcessedSig: latestProcessedSig,
-    earliestProcessedSig: earliestProcessedSig,
-  };
-}
-
-const indexingLoop = async () => {
-  while (true) {
-    let { earliest, latest } = await getTxIndexMetadata(
-      process.env.S3_BUCKET_NAME
+async function indexSignaturesForAddress(
+  address: PublicKey,
+  before?: TransactionSignature,
+  until?: TransactionSignature
+) {
+  let sigs: ConfirmedSignatureInfo[];
+  do {
+    sigs = await rpc.getSignaturesForAddressWithRetries(address, {
+      before,
+      until,
+      limit: 1000,
+    });
+    sigs.reverse();
+    console.log(
+      `Indexed: ${sigs[0].signature} (${new Date(
+        sigs[0].blockTime * 1000
+      ).toISOString()}) - ${sigs[sigs.length - 1].signature} (${new Date(
+        sigs[sigs.length - 1].blockTime * 1000
+      ).toISOString()})`
     );
-    let earliestProcessedSig, latestProcessedSig;
-
-    if (latest !== undefined) {
-      console.log(`Resuming transaction indexing until ${latest}\n`);
-    } else {
-      console.log(`No prior transactions indexed, starting from scratch\n`);
+    if (!sigs[0].signature || !sigs[sigs.length - 1].signature) {
+      console.warn("Null signature detected");
     }
-    while (true) {
-      let r = await scrapeTransactionBatch(earliestProcessedSig, latest);
-      // only update latest pointer on init
-      if (earliestProcessedSig === undefined) {
-        latestProcessedSig = r.latestProcessedSig;
-      }
-      earliestProcessedSig = r.earliestProcessedSig;
-      // If indices actually need to be updated (sigs length > 0)
-      if (r.sig_len > 0 && !DEBUG_MODE) {
-        await putTxIndexMetadata(
-          process.env.S3_BUCKET_NAME,
-          earliestProcessedSig,
-          latestProcessedSig
-        );
-      }
-      if (r.sig_len < MAX_SIGNATURE_BATCH_SIZE / 2) {
-        console.log("%cNo more txs to scrape!", "color: green");
-        // break;
-        return;
-      }
-    }
-    // Wait until rescrape
-    await sleep(10_000);
-  }
-};
+    // update checkpoints
+    await writeSignatureCheckpoint(
+      process.env.S3_BUCKET_NAME,
+      sigs[0].signature,
+      sigs[sigs.length - 1].signature
+    );
+    // update pointers for next iteration
+    before = sigs[0].signature;
+  } while (sigs && sigs.length > 0);
+}
 
 export const refreshConnection = async () => {
   rpc.connection = new Connection(rpc.nodeUrl, rpc.commitmentOrConfig);
@@ -140,12 +77,34 @@ const main = async () => {
   if (DEBUG_MODE) {
     console.log("Running in debug mode, will not push to AWS buckets");
   }
-  indexingLoop();
 
+  // Periodic refresh of rpc connection to prevent hangups
   setInterval(async () => {
     console.log("%cRefreshing rpc connection", "color: cyan");
     refreshConnection();
   }, 1000 * 60 * 5); // Refresh every 5 minutes
+
+  // indexing outer loop
+  // get pointers from storage
+  let { earliest, latest } = await readSignatureCheckpoint(
+    process.env.S3_BUCKET_NAME
+  );
+  // backfill if no data
+  let backfill = false;
+  if (!earliest && !latest) {
+    backfill = true;
+  }
+  while (true) {
+    if (backfill) {
+      await indexSignaturesForAddress(new PublicKey(process.env.PROGRAM_ID));
+    } else {
+      await indexSignaturesForAddress(
+        new PublicKey(process.env.PROGRAM_ID),
+        latest,
+        earliest
+      );
+    }
+  }
 };
 
 main().catch(console.error.bind(console));
