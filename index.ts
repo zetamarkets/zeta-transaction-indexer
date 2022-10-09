@@ -60,7 +60,7 @@ async function indexSignaturesForAddress(
     }
     // update checkpoints
     await writeSignatureCheckpoint(
-      process.env.S3_BUCKET_NAME,
+      process.env.CHECKPOINT_TABLE_NAME,
       sigs[0].signature,
       sigs[sigs.length - 1].signature
     );
@@ -87,7 +87,7 @@ const main = async () => {
   // indexing outer loop
   // get pointers from storage
   let { earliest, latest } = await readSignatureCheckpoint(
-    process.env.S3_BUCKET_NAME
+    process.env.CHECKPOINT_TABLE_NAME
   );
   // backfill if no data
   let backfill = false;

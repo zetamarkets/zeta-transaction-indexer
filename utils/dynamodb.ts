@@ -14,14 +14,19 @@ export const writeSignatureCheckpoint = (
 ) => {
   var params = {
     TableName: tableName,
-    Key: {
-      earliest: { N: earliest },
-      latest: { S: latest },
-    },
+    // Key: {
+    //   earliest: { S: earliest },
+    //   latest: { S: latest },
+    // },
+    Item: {
+      'id' : {S: 'CHECKPOINT'},
+      'earliest' : {S: earliest},
+      'latest': { S: latest }
+    }
   };
 
   // Call DynamoDB to add the item to the table
-  ddb.updateItem(params, function (err, data) {
+  ddb.putItem(params, function (err, data) {
     if (err) {
       console.log("Error", err);
     } else {
@@ -34,9 +39,9 @@ export const readSignatureCheckpoint = (tableName: string) => {
   var params = {
     TableName: tableName,
     Key: {
-      key: { S: "earliest" },
+      'id': { S: "CHECKPOINT" },
     },
-    ProjectionExpression: "ATTRIBUTE_NAME",
+    ConsistentRead: true
   };
 
   // Call DynamoDB to read the item from the table
@@ -47,7 +52,7 @@ export const readSignatureCheckpoint = (tableName: string) => {
       throw err;
     } else {
       console.log("Success", data.Item);
-      return { earliest: data.Item.earliest, latest: data.Item.latest };
+      return { "earliest": data.Item.earliest, "latest": data.Item.latest };
     }
   });
 };
