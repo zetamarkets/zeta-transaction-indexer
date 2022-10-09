@@ -14,6 +14,7 @@ import {
 } from "@solana/web3.js";
 import { getTxIndexMetadata, putTxIndexMetadata } from "./utils/s3";
 import { putFirehoseBatch } from "./utils/firehose";
+import { sendMessage } from "./utils/sqs";
 import { SolanaRPC } from "./utils/rpc";
 import { spliceIntoChunks } from "./utils/utils";
 import {
@@ -64,6 +65,13 @@ async function indexSignaturesForAddress(
       sigs[0].signature,
       sigs[sigs.length - 1].signature
     );
+    // push messages to sqs
+    console.log("Sending SQS Message for signatures...");
+    await sendMessage(
+      sigs.map((s) => s.signature),
+      process.env.SQS_QUEUE_URL
+    );
+
     // update pointers for next iteration
     before = sigs[0].signature;
   } while (sigs && sigs.length > 0);
