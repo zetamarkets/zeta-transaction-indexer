@@ -96,8 +96,10 @@ const main = async () => {
   }
   while (true) {
     if (backfill) {
+      console.log("Backfilling signatures...");
       await indexSignaturesForAddress(new PublicKey(process.env.PROGRAM_ID));
     } else {
+      console.log("No backfill needed.");
       await indexSignaturesForAddress(
         new PublicKey(process.env.PROGRAM_ID),
         latest,
