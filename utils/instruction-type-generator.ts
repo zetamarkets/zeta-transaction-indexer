@@ -15,7 +15,6 @@ interface idlType {
 
 function parseType(input: idlType) {
   let type = input.type;
-
   if (typeof type === "object") {
     let objType = Object.keys(type)[0];
     switch (objType) {
