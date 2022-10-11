@@ -1,35 +1,20 @@
 import {
-  Commitment,
   ConfirmedSignatureInfo,
-  ConfirmedSignaturesForAddress2Options,
   Connection,
-  ConnectionConfig,
-  Finality,
-  GetVersionedTransactionConfig,
-  ParsedTransactionWithMeta,
   PublicKey,
-  SolanaJSONRPCError,
   TransactionSignature,
-  VersionedTransactionResponse,
 } from "@solana/web3.js";
-import { getTxIndexMetadata, putTxIndexMetadata } from "./utils/s3";
-import { putFirehoseBatch } from "./utils/firehose";
 import { sendMessage } from "./utils/sqs";
 import { SolanaRPC } from "./utils/rpc";
-import { spliceIntoChunks } from "./utils/utils";
 import {
-  PROGRAM_ID,
   MAX_SIGNATURE_BATCH_SIZE,
   DEBUG_MODE,
-  MAX_TX_BATCH_SIZE,
 } from "./utils/constants";
 import { sleep } from "@zetamarkets/sdk/dist/utils";
-import { Signature } from "typescript";
 import {
   readSignatureCheckpoint,
   writeSignatureCheckpoint,
 } from "./utils/dynamodb";
-import { bool } from "aws-sdk/clients/signer";
 
 let rpc = new SolanaRPC(
   process.env.RPC_URL_1,

@@ -3,7 +3,6 @@ import {
   ConnectionConfig,
   Connection,
   PublicKey,
-  ConfirmedSignaturesForAddress2Options,
   Finality,
   ConfirmedSignatureInfo,
   GetVersionedTransactionConfig,
@@ -11,7 +10,6 @@ import {
   SignaturesForAddressOptions,
 } from "@solana/web3.js";
 import { sleep } from "@zetamarkets/sdk/dist/utils";
-import { int } from "aws-sdk/clients/datapipeline";
 
 export class SolanaRPC {
   nodeUrl: string;

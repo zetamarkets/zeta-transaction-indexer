@@ -1,7 +1,5 @@
 import AWS from "aws-sdk";
 import { AWSOptions } from "./aws-config";
-import { TableIndices } from "./types";
-import { TransactionSignature } from "@solana/web3.js";
 
 let ddb = new AWS.DynamoDB(AWSOptions);
 
@@ -14,10 +12,6 @@ export const writeSignatureCheckpoint = (
 ) => {
   var params = {
     TableName: tableName,
-    // Key: {
-    //   earliest: { S: earliest },
-    //   latest: { S: latest },
-    // },
     Item: {
       id: { S: "CHECKPOINT" },
       earliest: { S: earliest },
