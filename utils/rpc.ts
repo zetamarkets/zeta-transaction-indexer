@@ -3,7 +3,6 @@ import {
   ConnectionConfig,
   Connection,
   PublicKey,
-  ConfirmedSignaturesForAddress2Options,
   Finality,
   ConfirmedSignatureInfo,
   GetVersionedTransactionConfig,
@@ -11,7 +10,6 @@ import {
   SignaturesForAddressOptions,
 } from "@solana/web3.js";
 import { sleep } from "@zetamarkets/sdk/dist/utils";
-import { int } from "aws-sdk/clients/datapipeline";
 
 export class SolanaRPC {
   nodeUrl: string;
@@ -65,6 +63,7 @@ export class SolanaRPC {
           options,
           commitment
         );
+        // TODO: need to change this only to catch ratelimit errors (http 429)
       } catch (error) {
         console.error(
           `<RPC> getSignaturesForAddress failed with error ${error}`

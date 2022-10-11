@@ -1,30 +1,16 @@
 import {
-  Commitment,
   ConfirmedSignatureInfo,
-  ConfirmedSignaturesForAddress2Options,
   Connection,
-  ConnectionConfig,
-  Finality,
-  GetVersionedTransactionConfig,
-  ParsedTransactionWithMeta,
   PublicKey,
-  SolanaJSONRPCError,
   TransactionSignature,
-  VersionedTransactionResponse,
 } from "@solana/web3.js";
-import { getTxIndexMetadata, putTxIndexMetadata } from "./utils/s3";
-import { putFirehoseBatch } from "./utils/firehose";
 import { sendMessage } from "./utils/sqs";
 import { SolanaRPC } from "./utils/rpc";
-import { spliceIntoChunks } from "./utils/utils";
 import {
-  PROGRAM_ID,
   MAX_SIGNATURE_BATCH_SIZE,
   DEBUG_MODE,
-  MAX_TX_BATCH_SIZE,
 } from "./utils/constants";
 import { sleep } from "@zetamarkets/sdk/dist/utils";
-import { Signature } from "typescript";
 import {
   readSignatureCheckpoint,
   writeSignatureCheckpoint,
@@ -42,39 +28,55 @@ async function indexSignaturesForAddress(
   until?: TransactionSignature
 ) {
   let sigs: ConfirmedSignatureInfo[];
+  let latest = before;
+  let earliest = until;
   do {
     sigs = await rpc.getSignaturesForAddressWithRetries(address, {
-      before,
-      until,
+      before: latest,
+      until: earliest,
       limit: 1000,
     });
     sigs.reverse();
+    // Edge case where you enter indexing but there's nothing to index
+    if (!sigs || sigs.length === 0) {
+      // Edge case when before is undefined and there are no new txes to pull from rpc
+      return { earliest: "", latest: before ? before : until };
+    }
+
+    latest = sigs[sigs.length - 1].signature;
+    earliest = sigs[0].signature;
+    // on the first fetch set the latest tx sig (because from here we go back in time)
+    if (before === undefined) {
+      before = latest;
+    }
+
+    if (sigs[0] == undefined || !sigs[sigs.length - 1] == undefined) {
+      console.warn("Null signature detected");
+    }
     console.log(
-      `Indexed: ${sigs[0].signature} (${new Date(
+      `Indexed [${sigs.length}] txs: ${sigs[0].signature} (${new Date(
         sigs[0].blockTime * 1000
       ).toISOString()}) - ${sigs[sigs.length - 1].signature} (${new Date(
         sigs[sigs.length - 1].blockTime * 1000
       ).toISOString()})`
     );
-    if (!sigs[0].signature || !sigs[sigs.length - 1].signature) {
-      console.warn("Null signature detected");
-    }
-    // update checkpoints
-    await writeSignatureCheckpoint(
-      process.env.CHECKPOINT_TABLE_NAME,
-      sigs[0].signature,
-      sigs[sigs.length - 1].signature
-    );
-    // push messages to sqs
-    console.log("Sending SQS Message for signatures...");
-    await sendMessage(
-      sigs.map((s) => s.signature),
-      process.env.SQS_QUEUE_URL
-    );
 
-    // update pointers for next iteration
-    before = sigs[0].signature;
-  } while (sigs && sigs.length > 0);
+    // push messages to sqs
+    // console.log("Sending SQS Message for signatures...");
+    // if (!DEBUG_MODE) {
+    //   await sendMessage(
+    //     sigs.map((s) => s.signature),
+    //     process.env.SQS_QUEUE_URL
+    //   );
+    // }
+
+    // update local pointers
+    latest = earliest;
+    earliest = until;
+  } while (sigs && sigs.length === MAX_SIGNATURE_BATCH_SIZE);
+  // update remote checkpoints
+  await writeSignatureCheckpoint(process.env.CHECKPOINT_TABLE_NAME, "", before);
+  return { earliest: "", latest: before };
 }
 
 export const refreshConnection = async () => {
@@ -92,28 +94,26 @@ const main = async () => {
     refreshConnection();
   }, 1000 * 60 * 5); // Refresh every 5 minutes
 
-  // indexing outer loop
   // get pointers from storage
   let { earliest, latest } = await readSignatureCheckpoint(
     process.env.CHECKPOINT_TABLE_NAME
   );
-  // backfill if no data
-  let backfill = false;
-  if (!earliest && !latest) {
-    backfill = true;
-  }
+
+  // indexing outer loop
   while (true) {
-    if (backfill) {
-      console.log("Backfilling signatures...");
-      await indexSignaturesForAddress(new PublicKey(process.env.PROGRAM_ID));
+    if (latest) {
+      console.log(`Indexing up until: ${latest}`);
     } else {
-      console.log("No backfill needed.");
-      await indexSignaturesForAddress(
-        new PublicKey(process.env.PROGRAM_ID),
-        latest,
-        earliest
-      );
+      console.log(`No prior data, proceeding to backfill`);
     }
+
+    ({ earliest, latest } = await indexSignaturesForAddress(
+      new PublicKey(process.env.PROGRAM_ID),
+      undefined,
+      latest
+    ));
+    console.log("Indexing up to date, waiting a few seconds...");
+    await sleep(10000); // 10 seconds
   }
 };
 

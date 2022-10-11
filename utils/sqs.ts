@@ -1,6 +1,5 @@
 import AWS from "aws-sdk";
 import { AWSOptions } from "./aws-config";
-// import { spliceIntoChunks } from "./utils";
 
 let sqs = new AWS.SQS(AWSOptions);
 export const sendMessage = (
