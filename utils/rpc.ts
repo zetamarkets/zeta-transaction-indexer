@@ -65,6 +65,7 @@ export class SolanaRPC {
           options,
           commitment
         );
+        // TODO: need to change this only to catch ratelimit errors (http 429)
       } catch (error) {
         console.error(
           `<RPC> getSignaturesForAddress failed with error ${error}`

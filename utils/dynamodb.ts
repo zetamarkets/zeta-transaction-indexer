@@ -19,10 +19,10 @@ export const writeSignatureCheckpoint = (
     //   latest: { S: latest },
     // },
     Item: {
-      'id' : {S: 'CHECKPOINT'},
-      'earliest' : {S: earliest},
-      'latest': { S: latest }
-    }
+      id: { S: "CHECKPOINT" },
+      earliest: { S: earliest },
+      latest: { S: latest },
+    },
   };
 
   // Call DynamoDB to add the item to the table
@@ -30,29 +30,37 @@ export const writeSignatureCheckpoint = (
     if (err) {
       console.log("Error", err);
     } else {
-      console.log("Success", data);
+      console.log("Checkpoint successfully written.");
     }
   });
 };
 
-export const readSignatureCheckpoint = (tableName: string) => {
+export const readSignatureCheckpoint = async (tableName: string) => {
   var params = {
     TableName: tableName,
     Key: {
-      'id': { S: "CHECKPOINT" },
+      id: { S: "CHECKPOINT" },
     },
-    ConsistentRead: true
+    ConsistentRead: true,
   };
 
   // Call DynamoDB to read the item from the table
-  // need to fix the return here
-  return ddb.getItem(params, function (err, data) {
-    if (err) {
-      console.log("Error", err);
-      throw err;
+  let q = ddb.getItem(params);
+  try {
+    const r = await q.promise();
+    if (r.Item) {
+      let earliest = r.Item.earliest.S;
+      let latest = r.Item.latest.S;
+      console.log(`Read checkpoint: ${earliest}, ${latest}`);
+      return {
+        earliest,
+        latest,
+      };
     } else {
-      console.log("Success", data.Item);
-      return { "earliest": data.Item.earliest, "latest": data.Item.latest };
+      console.warn(`No checkpoint found`);
+      return { earliest: undefined, latest: undefined };
     }
-  });
+  } catch (error) {
+    throw error;
+  }
 };
