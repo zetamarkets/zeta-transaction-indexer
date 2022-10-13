@@ -19,13 +19,13 @@ function parseType(input: idlType) {
     let objType = Object.keys(type)[0];
     switch (objType) {
       case "defined":
-        type = type[objType];
+        type = type![objType];
         break;
       case "array":
-        type = `${type[objType][0]}[]`;
+        type = `${type![objType][0]}[]`;
         break;
       case "option":
-        type = `${type[objType]} | undefined`;
+        type = `${type![objType]} | undefined`;
         break;
 
       default:
