@@ -6,10 +6,7 @@ import {
 } from "@solana/web3.js";
 import { sendMessage } from "./utils/sqs";
 import { SolanaRPC } from "./utils/rpc";
-import {
-  MAX_SIGNATURE_BATCH_SIZE,
-  DEBUG_MODE,
-} from "./utils/constants";
+import { MAX_SIGNATURE_BATCH_SIZE, DEBUG_MODE } from "./utils/constants";
 import { sleep } from "@zetamarkets/sdk/dist/utils";
 import {
   readSignatureCheckpoint,
@@ -62,13 +59,12 @@ async function indexSignaturesForAddress(
     );
 
     // push messages to sqs
-    // console.log("Sending SQS Message for signatures...");
-    // if (!DEBUG_MODE) {
-    //   await sendMessage(
-    //     sigs.map((s) => s.signature),
-    //     process.env.SQS_QUEUE_URL
-    //   );
-    // }
+    if (!DEBUG_MODE) {
+      await sendMessage(
+        sigs.map((s) => s.signature),
+        process.env.SQS_QUEUE_URL
+      );
+    }
 
     // update local pointers
     latest = earliest;

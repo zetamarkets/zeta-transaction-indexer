@@ -13,7 +13,7 @@ export const writeSignatureCheckpoint = (
   var params = {
     TableName: tableName,
     Item: {
-      id: { S: "CHECKPOINT" },
+      id: { S: process.env.NETWORK! },
       earliest: { S: earliest },
       latest: { S: latest },
     },
@@ -33,7 +33,7 @@ export const readSignatureCheckpoint = async (tableName: string) => {
   var params = {
     TableName: tableName,
     Key: {
-      id: { S: "CHECKPOINT" },
+      id: { S: process.env.NETWORK! },
     },
     ConsistentRead: true,
   };
