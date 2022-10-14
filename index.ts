@@ -36,9 +36,13 @@ async function indexSignaturesForAddress(
     sigs.reverse();
     // Edge case where you enter indexing but there's nothing to index
     if (!sigs || sigs.length === 0) {
-      // Edge case when before is undefined and there are no new txes to pull from rpc
-      console.debug(`sigs ${sigs}`);
-      return { earliest: "", latest: before ? before : until };
+      if (before) {
+        // Backfill has no more sigs to pull, break, checkpoint and finish indexing
+        break;
+      } else {
+        // Edge case when before is undefined and there are no new txes to pull from rpc
+        return { earliest: "", latest: until };
+      }
     }
 
     latest = sigs[sigs.length - 1].signature;
