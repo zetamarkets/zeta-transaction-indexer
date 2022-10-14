@@ -63,11 +63,16 @@ async function indexSignaturesForAddress(
       ).toISOString()})`
     );
 
-    // push messages to sqs
+    // push messages to sqs and checkpoint
     if (!DEBUG_MODE) {
       await sendMessage(
         sigs.map((s) => s.signature),
         process.env.SQS_QUEUE_URL
+      );
+      await writeSignatureCheckpoint(
+        process.env.CHECKPOINT_TABLE_NAME,
+        "",
+        before
       );
     }
 
@@ -76,7 +81,6 @@ async function indexSignaturesForAddress(
     earliest = until;
   } while (sigs && sigs.length > 0);
   // update remote checkpoints
-  await writeSignatureCheckpoint(process.env.CHECKPOINT_TABLE_NAME, "", before);
   return { earliest: "", latest: before };
 }
 
