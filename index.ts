@@ -74,7 +74,7 @@ async function indexSignaturesForAddress(
     // update local pointers
     latest = earliest;
     earliest = until;
-  } while (sigs && sigs.length === MAX_SIGNATURE_BATCH_SIZE);
+  } while (sigs && sigs.length > 0);
   // update remote checkpoints
   await writeSignatureCheckpoint(process.env.CHECKPOINT_TABLE_NAME, "", before);
   return { earliest: "", latest: before };
