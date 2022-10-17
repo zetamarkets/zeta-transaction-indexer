@@ -36,11 +36,14 @@ async function indexSignaturesForAddress(
     sigs.reverse();
     // Edge case where you enter indexing but there's nothing to index
     if (!sigs || sigs.length === 0) {
+      console.warn(sigs);
       if (before) {
-        // Backfill has no more sigs to pull, break, checkpoint and finish indexing
+        // Backfill has no more sigs to fetch. Break, checkpoint and finish indexing
+        console.log("Backfill has no more signatures to fetch");
         break;
       } else {
         // Edge case when before is undefined and there are no new txes to pull from rpc
+        console.log("Frontfill has no more new signatures to fetch");
         return { earliest: "", latest: until };
       }
     }
