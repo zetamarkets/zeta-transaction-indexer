@@ -101,14 +101,9 @@ async function indexSignaturesForAddress(
       break;
     }
 
-    // // on the first fetch set the top tx sig (because from here we go back in time)
-    // if (before === undefined) {
-    //   before = top;
-    // }
-
-    // if (sigs[0] == undefined || !sigs[sigs.length - 1] == undefined) {
-    //   console.warn("Null signature detected");
-    // }
+    if (sigs[0] == undefined || !sigs[sigs.length - 1] == undefined) {
+      console.error("Null signature detected");
+    }
 
   } while (true);
   return { bottom: bottom, top: top };
