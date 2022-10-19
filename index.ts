@@ -9,9 +9,14 @@ import { SolanaRPC } from "./utils/rpc";
 import { MAX_SIGNATURE_BATCH_SIZE, DEBUG_MODE } from "./utils/constants";
 import { sleep } from "@zetamarkets/sdk/dist/utils";
 import {
-  readSignatureCheckpoint,
-  writeSignatureCheckpoint,
+  readFrontfillCheckpoint,
+  readBackfillCheckpoint,
+  writeFrontfillCheckpoint,
+  writeBackfillCheckpoint,
+  // readSignatureCheckpoint,
+  // writeSignatureCheckpoint,
 } from "./utils/dynamodb";
+
 
 let rpc = new SolanaRPC(
   process.env.RPC_URL_1,
@@ -19,77 +24,101 @@ let rpc = new SolanaRPC(
   "finalized"
 );
 
+
 async function indexSignaturesForAddress(
   address: PublicKey,
   before?: TransactionSignature,
-  until?: TransactionSignature
+  until?: TransactionSignature,
+  backfill_complete?: boolean,
 ) {
   let sigs: ConfirmedSignatureInfo[];
-  let latest = before;
-  let earliest = until;
+  let top = before;
+  let bottom = until;
+  let firstFlag = true;
+  let newTop = undefined;
   do {
+    /*
+      CHECK THIS FN
+    */
     sigs = await rpc.getSignaturesForAddressWithRetries(address, {
-      before: latest,
-      until: earliest,
+      before: top,
+      until: bottom,
       limit: 1000,
     });
     sigs.reverse();
-    // Edge case where you enter indexing but there's nothing to index
-    if (!sigs || sigs.length === 0) {
-      console.warn(sigs);
-      if (before) {
-        // Backfill has no more sigs to fetch. Break, checkpoint and finish indexing
-        console.log("Backfill has no more signatures to fetch");
-        break;
-      } else {
-        // Edge case when before is undefined and there are no new txes to pull from rpc
-        console.log("Frontfill has no more new signatures to fetch");
-        return { earliest: "", latest: until };
+
+    // Checking if any sigs were returned
+    if (!sigs || sigs.length > 0) {
+      // Set top and bottom of current run
+      top = sigs[sigs.length - 1].signature;
+      bottom = sigs[0].signature;
+
+      // For first iteration
+      if (firstFlag) {
+        // Start process (1st iteration) - write new top
+        newTop = top;
+        firstFlag = false;
       }
-    }
 
-    latest = sigs[sigs.length - 1].signature;
-    earliest = sigs[0].signature;
-    // on the first fetch set the latest tx sig (because from here we go back in time)
-    if (before === undefined) {
-      before = latest;
-    }
-
-    if (sigs[0] == undefined || !sigs[sigs.length - 1] == undefined) {
-      console.warn("Null signature detected");
-    }
-    console.log(
-      `Indexed [${sigs.length}] txs: ${sigs[0].signature} (${new Date(
-        sigs[0].blockTime * 1000
-      ).toISOString()}) - ${sigs[sigs.length - 1].signature} (${new Date(
-        sigs[sigs.length - 1].blockTime * 1000
-      ).toISOString()})`
-    );
-
-    // push messages to sqs and checkpoint
-    if (!DEBUG_MODE) {
-      await sendMessage(
-        sigs.map((s) => s.signature),
-        process.env.SQS_QUEUE_URL
+      // Logging the bottom (oldest tx) to the top (most recent tx) of the current run
+      console.log(
+        `Indexed [${sigs.length}] txs: ${sigs[0].signature} (${new Date(
+          sigs[0].blockTime * 1000
+        ).toISOString()}) - ${sigs[sigs.length - 1].signature} (${new Date(
+          sigs[sigs.length - 1].blockTime * 1000
+        ).toISOString()})`
       );
-      await writeSignatureCheckpoint(
+  
+      // Push Messages to SQS
+      if (!DEBUG_MODE) {
+        sendMessage(
+          sigs.map((s) => s.signature),
+          process.env.SQS_QUEUE_URL
+        );
+      }
+
+      // Update Local Pointers
+      top = bottom;
+      bottom = until;
+
+    } else {
+      // No more signatures to index
+      console.warn(`Signature list is empty ${sigs}`);
+      // Regardless update new top for frontfill
+      writeFrontfillCheckpoint(
         process.env.CHECKPOINT_TABLE_NAME,
-        "",
-        before
+        newTop,
       );
+      if (!backfill_complete) {
+        // Backfill end process extra requirement - set backfill to complete
+        writeBackfillCheckpoint(
+          process.env.CHECKPOINT_TABLE_NAME,
+          undefined,
+          top, // can to top or undefined both work here... (more useful for specific backfilling scenarios)
+          true,
+        );
+      }
+      break;
     }
 
-    // update local pointers
-    latest = earliest;
-    earliest = until;
-  } while (sigs && sigs.length > 0);
-  // update remote checkpoints
-  return { earliest: "", latest: before };
+    // // on the first fetch set the top tx sig (because from here we go back in time)
+    // if (before === undefined) {
+    //   before = top;
+    // }
+
+    // if (sigs[0] == undefined || !sigs[sigs.length - 1] == undefined) {
+    //   console.warn("Null signature detected");
+    // }
+
+  } while (true);
+  return { bottom: bottom, top: top };
 }
+
 
 export const refreshConnection = async () => {
   rpc.connection = new Connection(rpc.nodeUrl, rpc.commitmentOrConfig);
 };
+
 
 const main = async () => {
   if (DEBUG_MODE) {
@@ -102,24 +131,52 @@ const main = async () => {
     refreshConnection();
   }, 1000 * 60 * 5); // Refresh every 5 minutes
 
-  // get pointers from storage
-  let { earliest, latest } = await readSignatureCheckpoint(
-    process.env.CHECKPOINT_TABLE_NAME
-  );
-
-  // indexing outer loop
+  // Start Indexing
   while (true) {
-    if (latest) {
-      console.log(`Indexing up until: ${latest}`);
+    // get pointers from storage
+    let { incomplete_top, bottom, backfill_complete } = await readBackfillCheckpoint(
+      process.env.CHECKPOINT_TABLE_NAME
+    );
+    let top = incomplete_top;
+
+    if (backfill_complete) {
+      // Frontfill
+
+      // Checking where the old 'top' was...
+      let { old_top } = await readFrontfillCheckpoint(
+        process.env.CHECKPOINT_TABLE_NAME
+      );
+
+      if (!old_top) {
+        // Old top is undefined something is wrong, proceed to backfill
+        console.error("Backfilling Required, Setting Backfill to false")
+        let { incomplete_top, bottom, backfill_complete } = await readBackfillCheckpoint(
+          process.env.CHECKPOINT_TABLE_NAME
+        );
+        writeBackfillCheckpoint( process.env.CHECKPOINT_TABLE_NAME, incomplete_top, bottom, false);
+      } else {
+          // ...and indexing from the front to the old top
+          console.log(`Indexing up until: ${old_top}`);
+
+          ({ bottom, top } = await indexSignaturesForAddress(
+            new PublicKey(process.env.PROGRAM_ID),
+            undefined,
+            old_top,
+            backfill_complete,
+          ));
+      }
     } else {
-      console.log(`No prior data, proceeding to backfill`);
+      // Backfill
+      console.log(`No prior data, proceeding to backfill. Starting at: ${incomplete_top}`);
+      
+      ({ bottom, top } = await indexSignaturesForAddress(
+        new PublicKey(process.env.PROGRAM_ID),
+        incomplete_top,
+        bottom,
+        backfill_complete,
+      ));
     }
 
-    ({ earliest, latest } = await indexSignaturesForAddress(
-      new PublicKey(process.env.PROGRAM_ID),
-      undefined,
-      latest
-    ));
     console.log("Indexing up to date, waiting a few seconds...");
     await sleep(10000); // 10 seconds
   }
