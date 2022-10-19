@@ -12,6 +12,12 @@ export const writeBackfillCheckpoint = (
   bottom: string | undefined,
   backfill_complete: boolean | false
   ) => {
+    if (incomplete_top == undefined) {
+      incomplete_top = ""
+    }
+    if (bottom == undefined) {
+      bottom = ""
+    }
     var params = {
       TableName: tableName,
       Item: {
@@ -49,6 +55,12 @@ export const readBackfillCheckpoint = async (tableName: string) => {
       let incomplete_top = r.Item.incomplete_top.S;
       let bottom = r.Item.bottom.S;
       let backfill_complete = r.Item.backfill_complete.BOOL;
+      if (incomplete_top == "") {
+        incomplete_top = undefined;
+      }
+      if (bottom == "") {
+        bottom = undefined;
+      }
       console.log(`Read checkpoint: ${incomplete_top}, ${bottom}`);
       console.log(`Backfill complete: ${backfill_complete}`);
       return {
@@ -69,6 +81,9 @@ export const writeFrontfillCheckpoint = (
   tableName: string,
   new_top: string | undefined,
   ) => {
+    if (new_top == undefined) {
+      new_top = ""
+    }
     var params = {
       TableName: tableName,
       Item: {
@@ -86,7 +101,7 @@ export const writeFrontfillCheckpoint = (
       }
     });
   };
-    
+
 export const readFrontfillCheckpoint = async (tableName: string) => {
   var params = {
     TableName: tableName,
@@ -102,6 +117,9 @@ export const readFrontfillCheckpoint = async (tableName: string) => {
     const r = await q.promise();
     if (r.Item) {
       let old_top = r.Item.old_top.S;
+      if (old_top == "") {
+        old_top = undefined;
+      }
       console.log(`Read checkpoint: ${old_top}`);
       return {
         old_top,

@@ -86,7 +86,7 @@ async function indexSignaturesForAddress(
         writeBackfillCheckpoint(
           process.env.CHECKPOINT_TABLE_NAME,
           top,
-          until, // can to top or undefined both work here... (more useful for specific backfilling scenarios)
+          undefined, // can to top or undefined both work here... (more useful for specific backfilling scenarios)
           false,
         );
       }
@@ -142,6 +142,7 @@ const main = async () => {
     let { incomplete_top, bottom, backfill_complete } = await readBackfillCheckpoint(
       process.env.CHECKPOINT_TABLE_NAME
     );
+    console.log(`Incomplete Top: ${incomplete_top}, Bottom: ${bottom}, Backfill Complete: ${backfill_complete}`);
     let top = incomplete_top;
 
     if (backfill_complete) {
@@ -161,7 +162,7 @@ const main = async () => {
         writeBackfillCheckpoint( process.env.CHECKPOINT_TABLE_NAME, incomplete_top, bottom, false);
       } else {
           // ...and indexing from the front to the old top
-          console.log(`Indexing up until: ${old_top}`);
+          console.log(`Frontfilling: Indexing up until: ${old_top}`);
 
           ({ bottom, top } = await indexSignaturesForAddress(
             new PublicKey(process.env.PROGRAM_ID),
