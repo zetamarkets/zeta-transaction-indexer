@@ -81,6 +81,16 @@ async function indexSignaturesForAddress(
       top = bottom;
       bottom = until;
 
+      if (!backfill_complete) {
+        // Update DynamoDB Checkpoint
+        writeBackfillCheckpoint(
+          process.env.CHECKPOINT_TABLE_NAME,
+          top,
+          until, // can to top or undefined both work here... (more useful for specific backfilling scenarios)
+          false,
+        );
+      }
+
     } else {
       // No more signatures to index
       console.warn(`Signature list is empty ${sigs}`);
