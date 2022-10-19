@@ -136,6 +136,20 @@ const main = async () => {
     refreshConnection();
   }, 1000 * 60 * 5); // Refresh every 5 minutes
 
+  if (process.env.RESET === "true") {
+    console.log("Resetting checkpoints...");
+    writeFrontfillCheckpoint(
+      process.env.CHECKPOINT_TABLE_NAME,
+      undefined,
+      );
+    writeBackfillCheckpoint(
+      process.env.CHECKPOINT_TABLE_NAME,
+      undefined,
+      undefined,
+      false,
+    );
+  }
+
   // Start Indexing
   while (true) {
     // get pointers from storage
@@ -144,6 +158,12 @@ const main = async () => {
     );
     console.log(`Incomplete Top: ${incomplete_top}, Bottom: ${bottom}, Backfill Complete: ${backfill_complete}`);
     let top = incomplete_top;
+
+    if (process.env.FRONTFILL_ONLY === "true") {
+      // Frontfill only mode
+      console.log("Running in frontfill only mode...");
+      backfill_complete = true;
+    }
 
     if (backfill_complete) {
       // Frontfill
