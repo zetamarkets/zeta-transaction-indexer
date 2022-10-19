@@ -37,9 +37,6 @@ async function indexSignaturesForAddress(
   let firstFlag = true;
   let newTop = undefined;
   do {
-    /*
-      CHECK THIS FN
-    */
     sigs = await rpc.getSignaturesForAddressWithRetries(address, {
       before: top,
       until: bottom,
