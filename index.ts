@@ -101,7 +101,7 @@ async function indexSignaturesForAddress(
         writeBackfillCheckpoint(
           process.env.CHECKPOINT_TABLE_NAME,
           undefined,
-          top, // can to top or undefined both work here... (more useful for specific backfilling scenarios)
+          undefined, // can to top or undefined both work here... (more useful for specific backfilling scenarios)
           true,
         );
       }
