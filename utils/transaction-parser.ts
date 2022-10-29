@@ -336,6 +336,26 @@ function parseZetaInstruction(ix: PartiallyDecodedInstruction): Instruction {
       };
       break;
 
+    case "placePerpOrder":
+      // price: number;
+      // size: number;
+      // side: Side;
+      // orderType: orderType
+      // clientOrderId: number | undefined;
+      // tag: String | undefined;
+      let placePerpOrderData = decodedIx.data as zetaTypes.placeOrderV3;
+      decodedIx.data = {
+        price: utils.convertNativeBNToDecimal(placePerpOrderData.price),
+        size: utils.convertNativeLotSizeToDecimal(
+          placePerpOrderData.size.toNumber()
+        ),
+        side: Object.keys(placePerpOrderData.side)[0],
+        orderType: Object.keys(placePerpOrderData.orderType)[0],
+        clientOrderId: placePerpOrderData.clientOrderId?.toString(),
+        tag: placePerpOrderData?.tag,
+      };
+      break;
+
     case "cancelOrder":
       // side: Side;
       // orderId: number;
