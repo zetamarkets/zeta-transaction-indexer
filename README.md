@@ -1,4 +1,4 @@
-# zeta-transaction-indexer
+# zeta-transaction-indexer [DEPRECATED]
 
 Indexes all tranasctions that interact with the Zeta program.
 
